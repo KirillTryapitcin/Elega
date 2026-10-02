@@ -1,6 +1,6 @@
 # Realtime event contract
 
-Status: Step 2 blueprint draft. At M6 these become Zod schemas in
+Status: accepted with the Step 2 blueprint. At M6 these become Zod schemas in
 `packages/shared/src/realtime/` and the typed Socket.IO client is generated from them
 ([ADR-005](../adr/005-realtime-transport.md)).
 

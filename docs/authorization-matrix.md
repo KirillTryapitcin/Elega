@@ -1,6 +1,7 @@
 # Authorization policy matrix
 
-Status: Step 2 blueprint draft. At M0 this table becomes `packages/shared/src/policy/matrix.ts`
+Status: accepted with the Step 2 blueprint. In M1, together with the first protected routes, this
+table becomes `packages/shared/src/policy/matrix.ts`
 and drives generated tests (brief §29.3): one test per cell, run in CI, failing on drift.
 
 ## Actors

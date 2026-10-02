@@ -1,6 +1,6 @@
 # Architecture
 
-Status: Step 2 blueprint draft. Decisions are recorded in [`docs/adr`](adr/).
+Status: accepted with the Step 2 blueprint. Decisions are recorded in [`docs/adr`](adr/).
 
 Elega is a modular monolith: one NestJS API process (HTTP + WebSocket), one worker process
 from the same codebase, PostgreSQL, Redis and S3-compatible storage, all hosted in Russia.
