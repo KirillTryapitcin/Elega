@@ -2,3 +2,9 @@ packages:
   - apps/*
   - packages/*
   - tests/e2e
+
+# Neither package needs its install script: argon2 ships prebuilt binaries (glibc and musl)
+# and unrs-resolver ships per-platform optional packages.
+allowBuilds:
+  argon2: false
+  unrs-resolver: false

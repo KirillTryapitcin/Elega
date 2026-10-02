@@ -13,7 +13,10 @@ export interface paths {
     };
     get?: never;
     put?: never;
-    /** Register (invite code required until open beta) */
+    /**
+     * Register (invite code required until open beta)
+     * @description Creates the account, signs it in (refresh cookie set) and sends a verification email. Unverified accounts are read-only until the email is confirmed. Retries are safe without an Idempotency-Key because email and username are unique (409 on repeat).
+     */
     post: operations['postAuthRegister'];
     delete?: never;
     options?: never;
@@ -30,7 +33,10 @@ export interface paths {
     };
     get?: never;
     put?: never;
-    /** Confirm email with one-time token */
+    /**
+     * Confirm email with one-time token
+     * @description Accepts both verify_email tokens (sign-up) and change_email tokens (the new address becomes the account email). Tokens are single use; an unknown, used or expired token returns 400.
+     */
     post: operations['postAuthVerifyEmail'];
     delete?: never;
     options?: never;
@@ -64,7 +70,10 @@ export interface paths {
     };
     get?: never;
     put?: never;
-    /** Log in with email or username */
+    /**
+     * Log in with email or username
+     * @description Wrong identifier and wrong password return the same 401. After repeated failures for one identifier the endpoint answers 429 with Retry-After (temporary lockout). Suspended and banned accounts get 403 with code account_suspended or account_banned.
+     */
     post: operations['postAuthLogin'];
     delete?: never;
     options?: never;
@@ -266,7 +275,10 @@ export interface paths {
       path?: never;
       cookie?: never;
     };
-    /** Redirect to VK ID / Yandex ID (Google behind flag) */
+    /**
+     * Redirect to VK ID / Yandex ID (Google behind flag)
+     * @description Top-level navigation, not a fetch. intent=link links the provider to the signed-in account, identified by the refresh cookie; intent=login signs in or starts sign-up. The state is bound to the browser by a short-lived __Host-elega_oauth cookie.
+     */
     get: operations['getAuthOauthProviderStart'];
     put?: never;
     post?: never;
@@ -283,11 +295,82 @@ export interface paths {
       path?: never;
       cookie?: never;
     };
-    /** OAuth callback */
+    /**
+     * OAuth callback
+     * @description Redirects to the web app: / after sign-in (refresh cookie set), /login#mfa=... when 2FA is on, /signup/complete#token=... for a new identity, /settings/security#linked=... after linking, or /login#oauthError=<code> on failure. Secrets travel in the fragment so they never reach server logs or Referer headers.
+     */
     get: operations['getAuthOauthProviderCallback'];
     put?: never;
     post?: never;
     delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/auth/oauth/pending': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** Read a pending external sign-up to prefill the completion form */
+    post: operations['postAuthOauthPending'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/auth/oauth/complete': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** Finish sign-up through VK ID / Yandex ID (birthdate and consents are mandatory) */
+    post: operations['postAuthOauthComplete'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/auth/providers': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** External sign-in providers linked to the account */
+    get: operations['getAuthProviders'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/auth/providers/{provider}': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post?: never;
+    /** Unlink a provider (refused when it is the only way to sign in) */
+    delete: operations['deleteAuthProvidersProvider'];
     options?: never;
     head?: never;
     patch?: never;
@@ -320,7 +403,7 @@ export interface paths {
     get?: never;
     put?: never;
     post?: never;
-    /** Log out one device */
+    /** Log out one device (revokes the whole session family) */
     delete: operations['deleteAuthSessionsId'];
     options?: never;
     head?: never;
@@ -2407,7 +2490,10 @@ export interface components {
           | 'unsupported_media_type'
           | 'internal_error'
           | 'mfa_required'
-          | 'registration_closed';
+          | 'registration_closed'
+          | 'account_suspended'
+          | 'account_banned'
+          | 'reauth_required';
         message: string;
         details?: {
           field?: string;
@@ -2440,6 +2526,8 @@ export interface components {
       locale?: 'ru' | 'en';
       acceptedTermsVersion: string;
       acceptedPrivacyVersion: string;
+      /** @description Separate consent to personal data processing (152-FZ art. 9) */
+      acceptedPdProcessingVersion: string;
       captchaToken?: string;
     };
     LoginRequest: {
@@ -2485,8 +2573,9 @@ export interface components {
       newEmail: string;
     };
     PasswordConfirm: {
-      password: string;
-      /** @description TOTP code when 2FA is on */
+      /** @description Required when the account has a password. Accounts created through VK ID or Yandex ID without a password must instead have signed in within the last 10 minutes (otherwise 403 reauth_required). */
+      password?: string;
+      /** @description TOTP or recovery code when 2FA is on */
       code?: string;
     };
     TotpSetup: {
@@ -2498,6 +2587,38 @@ export interface components {
     };
     RecoveryCodes: {
       recoveryCodes: string[];
+    };
+    /** @enum {string} */
+    OAuthProvider: 'vk' | 'yandex' | 'google';
+    OAuthPendingSignup: {
+      provider: components['schemas']['OAuthProvider'];
+      /** @description Null when the provider did not share a verified email; the form must ask for one. */
+      email: string | null;
+      displayName: string | null;
+      birthdate: string | null;
+    };
+    OAuthCompleteRequest: {
+      token: string;
+      /**
+       * Format: email
+       * @description Only used when the provider did not share a verified email; a verification email is sent.
+       */
+      email?: string;
+      displayName: string;
+      username: string;
+      /** Format: date */
+      birthdate: string;
+      inviteCode?: string;
+      /** @enum {string} */
+      locale?: 'ru' | 'en';
+      acceptedTermsVersion: string;
+      acceptedPrivacyVersion: string;
+      acceptedPdProcessingVersion: string;
+    };
+    LinkedProvider: {
+      provider: components['schemas']['OAuthProvider'];
+      /** Format: date-time */
+      linkedAt: string;
     };
     Session: {
       /** Format: uuid */
@@ -2535,6 +2656,7 @@ export interface components {
       locale: 'ru' | 'en';
       timezone: string;
       twoFactorEnabled?: boolean;
+      hasPassword?: boolean;
       profile?: components['schemas']['Profile'];
     };
     Profile: {
@@ -3350,9 +3472,10 @@ export interface components {
       registration: 'invite_only' | 'open' | 'closed';
       oauthProviders: ('vk' | 'yandex' | 'google')[];
       vapidPublicKey?: string;
-      legalVersions?: {
-        terms?: string;
-        privacy?: string;
+      legalVersions: {
+        terms: string;
+        privacy: string;
+        pdProcessing: string;
       };
       limits?: Record<string, never>;
     };
@@ -3378,6 +3501,15 @@ export interface components {
     };
     /** @description Not allowed */
     Forbidden: {
+      headers: {
+        [name: string]: unknown;
+      };
+      content: {
+        'application/json': components['schemas']['Error'];
+      };
+    };
+    /** @description Conflicts with existing state (taken email or username, last sign-in method) */
+    Conflict: {
       headers: {
         [name: string]: unknown;
       };
@@ -3422,10 +3554,7 @@ export interface operations {
   postAuthRegister: {
     parameters: {
       query?: never;
-      header?: {
-        /** @description Retries with the same key and body return the original response for 24 h */
-        'Idempotency-Key'?: components['parameters']['IdempotencyKey'];
-      };
+      header?: never;
       path?: never;
       cookie?: never;
     };
@@ -3435,17 +3564,18 @@ export interface operations {
       };
     };
     responses: {
-      /** @description OK */
+      /** @description Signed in; refresh token set as the __Host-elega_rt cookie */
       201: {
         headers: {
           [name: string]: unknown;
         };
         content: {
-          'application/json': components['schemas']['Me'];
+          'application/json': components['schemas']['AuthResult'];
         };
       };
       400: components['responses']['ValidationFailed'];
       403: components['responses']['Forbidden'];
+      409: components['responses']['Conflict'];
       429: components['responses']['RateLimited'];
     };
   };
@@ -3523,6 +3653,7 @@ export interface operations {
         };
       };
       400: components['responses']['ValidationFailed'];
+      401: components['responses']['Unauthorized'];
       403: components['responses']['Forbidden'];
       429: components['responses']['RateLimited'];
     };
@@ -3550,6 +3681,7 @@ export interface operations {
         };
       };
       400: components['responses']['ValidationFailed'];
+      401: components['responses']['Unauthorized'];
       403: components['responses']['Forbidden'];
       429: components['responses']['RateLimited'];
     };
@@ -3814,10 +3946,12 @@ export interface operations {
   };
   getAuthOauthProviderStart: {
     parameters: {
-      query?: never;
+      query?: {
+        intent?: 'login' | 'link';
+      };
       header?: never;
       path: {
-        provider: string;
+        provider: components['schemas']['OAuthProvider'];
       };
       cookie?: never;
     };
@@ -3841,7 +3975,7 @@ export interface operations {
       query?: never;
       header?: never;
       path: {
-        provider: string;
+        provider: components['schemas']['OAuthProvider'];
       };
       cookie?: never;
     };
@@ -3857,6 +3991,111 @@ export interface operations {
       };
       403: components['responses']['Forbidden'];
       404: components['responses']['NotFound'];
+      429: components['responses']['RateLimited'];
+    };
+  };
+  postAuthOauthPending: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['TokenRequest'];
+      };
+    };
+    responses: {
+      /** @description OK */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['OAuthPendingSignup'];
+        };
+      };
+      400: components['responses']['ValidationFailed'];
+      403: components['responses']['Forbidden'];
+      429: components['responses']['RateLimited'];
+    };
+  };
+  postAuthOauthComplete: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['OAuthCompleteRequest'];
+      };
+    };
+    responses: {
+      /** @description Signed in; refresh token set as the __Host-elega_rt cookie */
+      201: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['AuthResult'];
+        };
+      };
+      400: components['responses']['ValidationFailed'];
+      403: components['responses']['Forbidden'];
+      409: components['responses']['Conflict'];
+      429: components['responses']['RateLimited'];
+    };
+  };
+  getAuthProviders: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description OK */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': {
+            data: components['schemas']['LinkedProvider'][];
+          };
+        };
+      };
+      401: components['responses']['Unauthorized'];
+      403: components['responses']['Forbidden'];
+      429: components['responses']['RateLimited'];
+    };
+  };
+  deleteAuthProvidersProvider: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        provider: components['schemas']['OAuthProvider'];
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Done */
+      204: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      401: components['responses']['Unauthorized'];
+      403: components['responses']['Forbidden'];
+      404: components['responses']['NotFound'];
+      409: components['responses']['Conflict'];
       429: components['responses']['RateLimited'];
     };
   };

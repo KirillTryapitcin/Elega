@@ -1,6 +1,8 @@
 import { Module } from '@nestjs/common';
 import { LoggerModule } from 'nestjs-pino';
 import { ENV, type Env } from './config/env.js';
+import { AuthModule } from './modules/auth/index.js';
+import { UsersModule } from './modules/users/index.js';
 import { PlatformModule } from './platform/platform.module.js';
 import { requestIdFor } from './platform/request-id.js';
 
@@ -10,6 +12,8 @@ const isProbe = (url: string) => PROBES.has(url.split('?')[0] ?? '');
 @Module({
   imports: [
     PlatformModule,
+    UsersModule,
+    AuthModule,
     LoggerModule.forRootAsync({
       inject: [ENV],
       useFactory: (env: Env) => ({
@@ -26,6 +30,10 @@ const isProbe = (url: string) => PROBES.has(url.split('?')[0] ?? '');
               '*.token',
               '*.accessToken',
               '*.refreshToken',
+              '*.newPassword',
+              '*.currentPassword',
+              '*.mfaToken',
+              '*.code',
             ],
             censor: '[redacted]',
           },
