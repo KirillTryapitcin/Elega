@@ -82,5 +82,7 @@ describe('policy matrix', () => {
     expect(() => policyCell('profiles', 'Nope', 'owner')).toThrow();
     expect(cellDecision('A¹⁰')).toBe('A');
     expect(cellDecision('Remove only')).toBe('other');
+    expect(cellDecision('Y³')).toBe('Y');
+    expect(cellDecision('²'.repeat(50_000) + 'x')).toBe('other');
   });
 });

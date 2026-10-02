@@ -1,3 +1,4 @@
+import { randomBytes } from 'node:crypto';
 import AxeBuilder from '@axe-core/playwright';
 import { expect, type Page, test } from '@playwright/test';
 
@@ -71,7 +72,7 @@ test('register, confirm email, sign out, sign in, sign out everywhere', async ({
   });
   const inviteCode = process.env.E2E_INVITE_CODE;
   expect(inviteCode, 'globalSetup creates an invite code').toBeTruthy();
-  const id = `${Date.now().toString(36)}${Math.floor(Math.random() * 1e4)}`;
+  const id = `${Date.now().toString(36)}${randomBytes(2).toString('hex')}`;
   const email = `e2e_${id}@example.ru`;
   const username = `e2e_${id}`;
 

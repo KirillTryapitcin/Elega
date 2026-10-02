@@ -4,5 +4,5 @@ title = "Elega gitleaks config"
 useDefault = true
 
 [allowlist]
-description = "Local-only development placeholders (docker-compose.yml, .env.example). Production refuses any value containing local_only."
-regexes = ['''elega_local_only(_secret)?''']
+description = "Local-only development placeholders (docker-compose.yml, .env.example; production refuses any value containing local_only) and the fixed APP_SECRET of the integration tests (apps/api/test)."
+regexes = ['''elega_local_only(_secret)?''', '''integration-test-secret-0123456789abcdef''']

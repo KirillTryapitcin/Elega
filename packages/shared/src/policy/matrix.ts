@@ -293,9 +293,14 @@ export const POLICY_MATRIX: readonly PolicyTable[] = [
   },
 ];
 
+const SUPERSCRIPT_DIGITS = new Set('⁰¹²³⁴⁵⁶⁷⁸⁹');
+
 /** The base decision of a cell, without its footnote. */
 export function cellDecision(cell: string): 'Y' | 'N' | 'A' | '—' | 'other' {
-  const base = cell.replace(/[⁰¹²³⁴⁵⁶⁷⁸⁹]+$/u, '');
+  // A plain scan rather than a trailing-repetition regex, which backtracks polynomially.
+  let end = cell.length;
+  while (end > 0 && SUPERSCRIPT_DIGITS.has(cell.charAt(end - 1))) end -= 1;
+  const base = cell.slice(0, end);
   return base === 'Y' || base === 'N' || base === 'A' || base === '—' ? base : 'other';
 }
 
