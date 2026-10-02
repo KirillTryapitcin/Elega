@@ -1,0 +1,8 @@
+title = "Elega gitleaks config"
+
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Local-only development placeholders (docker-compose.yml, .env.example). Production refuses any value containing local_only."
+regexes = ['''elega_local_only(_secret)?''']
