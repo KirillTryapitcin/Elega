@@ -1,0 +1,32 @@
+{
+  "meta": {
+    "title": "Elega",
+    "description": "A social network for friends, family and communities."
+  },
+  "common": {
+    "appName": "Elega",
+    "signIn": "Sign in",
+    "signUp": "Sign up",
+    "loading": "Loading…",
+    "retry": "Retry",
+    "theme": {
+      "label": "Theme",
+      "light": "Light",
+      "dark": "Dark",
+      "system": "System"
+    },
+    "language": "Language"
+  },
+  "home": {
+    "headline": "Friends, family and communities in one place",
+    "lead": "Elega is getting ready for a closed alpha. The feed, messages, groups and events will appear here.",
+    "signInWith": "Sign in with {provider}",
+    "friends": "{count, plural, one {# friend} other {# friends}}",
+    "newPosts": "{count, plural, =0 {No new posts} one {# new post} other {# new posts}}"
+  },
+  "errors": {
+    "generic": "Something went wrong. Please try again.",
+    "notFound": "Page not found",
+    "offline": "No internet connection"
+  }
+}
