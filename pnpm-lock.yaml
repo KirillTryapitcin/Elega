@@ -229,6 +229,9 @@ importers:
 
   apps/worker:
     dependencies:
+      '@elega/i18n':
+        specifier: workspace:*
+        version: link:../../packages/i18n
       bullmq:
         specifier: 6.3.11
         version: 6.3.11(ioredis@6.0.0)(pg@8.23.1)
@@ -254,6 +257,9 @@ importers:
       '@elega/config':
         specifier: workspace:*
         version: link:../../packages/config
+      '@testcontainers/postgresql':
+        specifier: 12.2.0
+        version: 12.2.0
       '@testcontainers/redis':
         specifier: 12.2.0
         version: 12.2.0
@@ -263,6 +269,9 @@ importers:
       '@types/pg':
         specifier: 8.23.1
         version: 8.23.1
+      testcontainers:
+        specifier: 12.2.0
+        version: 12.2.0
       typescript:
         specifier: 6.0.3
         version: 6.0.3

@@ -28,5 +28,54 @@
     "generic": "Something went wrong. Please try again.",
     "notFound": "Page not found",
     "offline": "No internet connection"
+  },
+  "emails": {
+    "greeting": "Hello, {name}!",
+    "footer": "This is a service email from Elega. If this wasn't you, change your password and sign out of all sessions in your security settings.",
+    "verify_email": {
+      "subject": "Confirm your email address",
+      "body": "Confirm your email address to use Elega fully. The link is valid for 24 hours.",
+      "action": "Confirm email"
+    },
+    "change_email_confirm": {
+      "subject": "Confirm your new email address",
+      "body": "You entered this address as the new email for your Elega account. The link is valid for 24 hours.",
+      "action": "Confirm address"
+    },
+    "change_email_notice": {
+      "subject": "Email change requested",
+      "body": "Someone asked to change the email of your account. It changes only after the new address is confirmed.",
+      "action": "Open security settings"
+    },
+    "reset_password": {
+      "subject": "Reset your password",
+      "body": "We received a request to reset your password. The link works once and is valid for 1 hour. If you didn't ask for this, ignore this email.",
+      "action": "Set a new password"
+    },
+    "password_changed": {
+      "subject": "Your password was changed",
+      "body": "The password of your account was changed and your other sessions were signed out.",
+      "action": "Open security settings"
+    },
+    "new_device_login": {
+      "subject": "Sign-in from a new device",
+      "body": "Your account was signed in from a new device: {device}. Time: {time}.",
+      "action": "Review sessions"
+    },
+    "two_factor_enabled": {
+      "subject": "Two-factor authentication is on",
+      "body": "Signing in now needs a code from your authenticator app. Keep your recovery codes somewhere safe.",
+      "action": "Open security settings"
+    },
+    "two_factor_disabled": {
+      "subject": "Two-factor authentication is off",
+      "body": "Signing in no longer needs a code from your authenticator app.",
+      "action": "Open security settings"
+    },
+    "provider_linked": {
+      "subject": "Sign-in method linked",
+      "body": "Sign-in with {provider} was linked to your account.",
+      "action": "Open security settings"
+    }
   }
 }
