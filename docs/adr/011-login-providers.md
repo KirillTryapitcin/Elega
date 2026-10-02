@@ -24,3 +24,18 @@ abroad and its availability in the RF is not reliable.
 
 ## Alternatives considered
 - Google as a required provider (brief default): rejected for the residency reason above.
+
+## Amendment · M1 implementation (2026-10-02)
+
+- Endpoints, parameters and the operator checklist are in
+  [auth-providers.md](../auth-providers.md).
+- Neither VK ID nor Yandex ID documents whether the returned email is verified, so both are
+  treated as unverified and the account gets the usual verification email. Google's
+  `email_verified` is honoured.
+- A new external identity is parked in Redis for 30 minutes until the user finishes sign-up
+  (username, birthdate, consents); nothing is stored before that.
+- An email collision never links automatically: the flow ends with `account_exists` and the
+  user links the provider from security settings after signing in.
+- Google needs both its credentials and the `auth.google` flag; either missing hides it.
+- Accounts created through a provider have no password; they set one through the
+  password-reset email, and cannot unlink their only sign-in method.
