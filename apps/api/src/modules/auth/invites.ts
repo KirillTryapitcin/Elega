@@ -1,4 +1,4 @@
-import { randomBytes } from 'node:crypto';
+import { randomInt } from 'node:crypto';
 import { Injectable } from '@nestjs/common';
 import { and, eq, gt, isNull, lt, or, sql } from 'drizzle-orm';
 import { inviteCodes } from '../../db/schema.js';
@@ -15,8 +15,8 @@ export function normalizeInviteCode(code: string): string {
 
 /** A 16-character code (about 79 bits), shown as XXXX-XXXX-XXXX-XXXX. */
 export function generateInviteCode(): string {
-  const bytes = randomBytes(16);
-  const chars = [...bytes].map((byte) => ALPHABET[byte % ALPHABET.length]).join('');
+  // randomInt draws without modulo bias, so every character is equally likely.
+  const chars = Array.from({ length: 16 }, () => ALPHABET[randomInt(ALPHABET.length)]).join('');
   return chars.match(/.{4}/g)!.join('-');
 }
 

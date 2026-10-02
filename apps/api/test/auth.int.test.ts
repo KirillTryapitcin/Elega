@@ -135,6 +135,8 @@ describe('registration', () => {
     });
     const setCookie = [res.headers['set-cookie']].flat().join('\n');
     expect(setCookie).toMatch(/__Host-elega_rt=[\w-]{43}; Path=\/; HttpOnly; Secure; SameSite=Lax/);
+    // The script-readable hint carries no secret and is not HttpOnly.
+    expect(setCookie).toMatch(/__Host-elega_signed_in=1; Path=\/; Secure; SameSite=Lax(\n|$)/);
     expect(setCookie).not.toMatch(/Max-Age/); // browser-session cookie without "remember"
     expect((await me(result.accessToken)).json().username).toBe(body.username);
 
@@ -406,6 +408,7 @@ describe('sessions', () => {
     });
     expect(out.statusCode).toBe(204);
     expect([out.headers['set-cookie']].flat().join()).toMatch(/__Host-elega_rt=;/);
+    expect([out.headers['set-cookie']].flat().join()).toMatch(/__Host-elega_signed_in=;/);
     expect((await refresh(token)).statusCode).toBe(401);
   });
 

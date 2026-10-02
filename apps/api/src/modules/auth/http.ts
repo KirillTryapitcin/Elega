@@ -5,17 +5,29 @@ import type { IssuedSession } from './sessions.service.js';
 
 /** ADR-004: the `__Host-` prefix pins the cookie to this host, Secure and Path=/. */
 export const REFRESH_COOKIE = '__Host-elega_rt';
+/**
+ * Readable by scripts and carries no secret: it only tells the web app that a refresh cookie
+ * probably exists, so anonymous visitors don't call /auth/refresh on every page load.
+ */
+export const SIGNED_IN_HINT_COOKIE = '__Host-elega_signed_in';
 
 export function setRefreshCookie(reply: FastifyReply, session: IssuedSession): void {
+  // Without "remember this device" the cookies live for the browser session only.
+  const lifetime = session.remember
+    ? { maxAge: Math.floor((session.expiresAt.getTime() - Date.now()) / 1000) }
+    : {};
   void reply.setCookie(REFRESH_COOKIE, session.refreshToken, {
     httpOnly: true,
     secure: true,
     sameSite: 'lax',
     path: '/',
-    // Without "remember this device" the cookie lives for the browser session only.
-    ...(session.remember
-      ? { maxAge: Math.floor((session.expiresAt.getTime() - Date.now()) / 1000) }
-      : {}),
+    ...lifetime,
+  });
+  void reply.setCookie(SIGNED_IN_HINT_COOKIE, '1', {
+    secure: true,
+    sameSite: 'lax',
+    path: '/',
+    ...lifetime,
   });
 }
 
@@ -26,6 +38,7 @@ export function clearRefreshCookie(reply: FastifyReply): void {
     sameSite: 'lax',
     path: '/',
   });
+  void reply.clearCookie(SIGNED_IN_HINT_COOKIE, { secure: true, sameSite: 'lax', path: '/' });
 }
 
 export function readRefreshCookie(request: FastifyRequest): string | undefined {
