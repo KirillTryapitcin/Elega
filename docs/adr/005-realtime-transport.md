@@ -1,6 +1,6 @@
 # ADR-005: Realtime transport
 
-Status: Proposed · 2026-10-02
+Status: Accepted · 2026-10-02
 
 ## Context
 Chat, receipts, typing, presence, notifications and the "new posts" pill need server push

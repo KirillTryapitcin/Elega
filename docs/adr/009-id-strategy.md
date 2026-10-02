@@ -1,6 +1,6 @@
 # ADR-009: ID strategy
 
-Status: Proposed · 2026-10-02
+Status: Accepted · 2026-10-02
 
 ## Context
 IDs appear in URLs and cursors, must not reveal counts, should be time-sortable for keyset

@@ -1,6 +1,6 @@
 # ADR-006: Media pipeline
 
-Status: Proposed · 2026-10-02
+Status: Accepted · 2026-10-02
 
 ## Context
 Users upload photos, short videos, voice messages and files from weak phones (§18). Media

@@ -1,7 +1,11 @@
 # Design directions
 
-Status: Step 2 blueprint draft, waiting for Kirill's choice. Visual comparison (light and
+Status: **Decided 2026-10-02: B · Dusk** (Kirill's choice). Visual comparison (light and
 dark, same components in each): https://claude.ai/artifact/5YbX7SHtX16LVw9N5q1gCB
+
+Dusk is implemented as design tokens in `packages/ui` from M0. Known risk: the indigo
+primary sits closer to VK's blue than the other options; the coral accent and Onest type
+carry the distinction. A and C are kept below for the record.
 
 All three meet WCAG 2.1 AA for the pairs used in the sketches (text, muted text, buttons,
 chips, reaction badges ≥ 4.5:1 in both themes, checked by script), use Google-hosted fonts

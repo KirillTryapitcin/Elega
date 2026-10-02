@@ -1,6 +1,6 @@
 # ADR-003: Hybrid fan-out feed
 
-Status: Proposed · 2026-10-02
+Status: Accepted · 2026-10-02
 
 ## Context
 The default feed is chronological; "For you" is an optional transparent ranking (§12).

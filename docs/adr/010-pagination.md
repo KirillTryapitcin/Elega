@@ -1,6 +1,6 @@
 # ADR-010: Pagination
 
-Status: Proposed · 2026-10-02
+Status: Accepted · 2026-10-02
 
 ## Context
 Every list must be bounded and stable while new items arrive; OFFSET is banned on large

@@ -1,6 +1,6 @@
 # ADR-007: Search provider abstraction
 
-Status: Proposed · 2026-10-02
+Status: Accepted · 2026-10-02
 
 ## Context
 Search covers people, groups, pages, events, public posts and hashtags with typeahead

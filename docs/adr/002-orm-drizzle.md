@@ -1,6 +1,6 @@
 # ADR-002: Drizzle ORM with hand-reviewed SQL migrations
 
-Status: Proposed · 2026-10-02
+Status: Accepted · 2026-10-02
 
 ## Context
 The brief requires hand-reviewed SQL migrations, partial indexes, `CONCURRENTLY` index

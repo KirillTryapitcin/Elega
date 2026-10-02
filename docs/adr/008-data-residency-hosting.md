@@ -1,6 +1,6 @@
 # ADR-008: Data residency and hosting
 
-Status: Proposed · 2026-10-02
+Status: Accepted · 2026-10-02
 
 ## Context
 152-FZ requires primary storage of Russian citizens' personal data in the RF (§21.1). The

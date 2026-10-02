@@ -1,6 +1,6 @@
 # ADR-011: Login providers
 
-Status: Proposed · 2026-10-02 · Decided with Kirill in the project thread on 2026-10-02
+Status: Accepted · 2026-10-02 · Decided with Kirill in the project thread on 2026-10-02
 
 ## Context
 The audience is Russian-speaking users in the RF and CIS (§2). The brief lists Google as

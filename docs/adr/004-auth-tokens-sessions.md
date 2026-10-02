@@ -1,6 +1,6 @@
 # ADR-004: Auth tokens and session model
 
-Status: Proposed · 2026-10-02
+Status: Accepted · 2026-10-02
 
 ## Context
 Brief §8.4: short-lived access JWT, rotating refresh tokens with reuse detection, cookie

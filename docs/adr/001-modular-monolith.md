@@ -1,6 +1,6 @@
 # ADR-001: Modular monolith, not microservices
 
-Status: Proposed · 2026-10-02
+Status: Accepted · 2026-10-02
 
 ## Context
 Two people (Kirill and Claude) build and operate Elega. The MVP has 16 domain modules with
