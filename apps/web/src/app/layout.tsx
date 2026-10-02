@@ -5,6 +5,7 @@ import { cookies } from 'next/headers';
 import { NextIntlClientProvider } from 'next-intl';
 import { getLocale, getTranslations } from 'next-intl/server';
 import type { ReactNode } from 'react';
+import { SessionProvider } from '@/components/session-provider';
 import { isTheme, THEME_COOKIE } from '@/i18n/locale';
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -29,7 +30,9 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
   return (
     <html lang={locale} data-theme={isTheme(theme) && theme !== 'system' ? theme : undefined}>
       <body className="min-h-dvh bg-bg text-ink antialiased">
-        <NextIntlClientProvider>{children}</NextIntlClientProvider>
+        <NextIntlClientProvider>
+          <SessionProvider>{children}</SessionProvider>
+        </NextIntlClientProvider>
       </body>
     </html>
   );
