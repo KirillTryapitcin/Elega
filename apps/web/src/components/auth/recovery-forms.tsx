@@ -7,7 +7,7 @@ import Link from 'next/link';
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { type FormErrors, toFormErrors } from '@/lib/errors';
 import { useFragment } from '@/lib/fragment';
-import { api, sessionStore, setUser } from '@/lib/session';
+import { api, refreshSession, sessionStore, setUser } from '@/lib/session';
 import { AuthShell, FormAlert, PasswordStrength } from './parts';
 
 const empty: FormErrors = { fields: {}, form: null };
@@ -26,11 +26,15 @@ export function VerifyEmail() {
       .POST('/auth/verify-email', { body: { token } })
       .then(async ({ data }) => {
         setResult(data ? 'done' : 'failed');
-        // Signed in on this device: refresh the cached account so the banner goes away.
-        if (data && sessionStore.get().status === 'authenticated') {
-          const me = await api().GET('/me');
-          if (me.data) setUser(me.data);
-        }
+        if (!data) return;
+        // Signed in on this device: refresh the cached account so the banner goes away. The
+        // session may still be restoring; wait for it rather than read a stale account.
+        const status = sessionStore.get().status;
+        const signedIn =
+          status === 'authenticated' || (status === 'loading' && (await refreshSession()));
+        if (!signedIn) return;
+        const me = await api().GET('/me');
+        if (me.data) setUser(me.data);
       });
   }, [token]);
   const state = fragment === null ? 'working' : !token ? 'failed' : (result ?? 'working');

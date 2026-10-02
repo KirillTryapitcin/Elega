@@ -103,11 +103,10 @@ export function PrivacySettings() {
         <Checkbox
           name={key}
           checked={Boolean(settings![key])}
-          onChange={(checked) => {
-            if (!locked) void save({ [key]: checked } as Partial<Settings>);
-          }}
+          disabled={locked}
+          onChange={(checked) => void save({ [key]: checked } as Partial<Settings>)}
         >
-          <span className={locked ? 'text-muted' : undefined}>{t(`settings.privacy.${key}`)}</span>
+          {t(`settings.privacy.${key}`)}
         </Checkbox>
         {locked && <p className="pl-8 text-xs text-muted">{t('settings.privacy.minorLocked')}</p>}
       </div>

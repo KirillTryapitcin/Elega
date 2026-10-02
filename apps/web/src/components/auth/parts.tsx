@@ -1,6 +1,6 @@
 'use client';
 
-import { Card } from '@elega/ui';
+import { Card, cn } from '@elega/ui';
 import { useTranslations } from 'next-intl';
 import Link from 'next/link';
 import { useEffect, useId, useState, type ReactNode } from 'react';
@@ -60,25 +60,31 @@ export function Checkbox({
   onChange,
   children,
   error,
+  disabled = false,
 }: {
   name: string;
   checked: boolean;
   onChange: (checked: boolean) => void;
   children: ReactNode;
   error?: string | undefined;
+  disabled?: boolean;
 }) {
   const id = useId();
   return (
     <div className="space-y-1">
       <label
         htmlFor={id}
-        className="flex min-h-11 cursor-pointer items-start gap-3 py-1 text-sm text-ink"
+        className={cn(
+          'flex min-h-11 items-start gap-3 py-1 text-sm',
+          disabled ? 'cursor-not-allowed text-muted' : 'cursor-pointer text-ink',
+        )}
       >
         <input
           id={id}
           name={name}
           type="checkbox"
           checked={checked}
+          disabled={disabled}
           onChange={(event) => onChange(event.target.checked)}
           aria-invalid={error ? true : undefined}
           className="mt-0.5 size-5 shrink-0 accent-[var(--color-primary)]"

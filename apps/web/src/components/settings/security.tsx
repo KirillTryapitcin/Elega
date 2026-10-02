@@ -2,7 +2,7 @@
 
 import type { Schemas } from '@elega/api-client';
 import { Badge, Button, Input } from '@elega/ui';
-import { useFormatter, useTranslations } from 'next-intl';
+import { useFormatter, useNow, useTranslations } from 'next-intl';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState, type FormEvent } from 'react';
 import { OAuthButtons, useProviderName, usePublicConfig } from '@/components/auth/oauth-buttons';
@@ -323,6 +323,8 @@ function TwoFactorSection() {
 function SessionsSection() {
   const t = useTranslations();
   const format = useFormatter();
+  // An explicit "now" keeps server and client renders in agreement.
+  const now = useNow({ updateInterval: 60_000 });
   const router = useRouter();
   const [sessions, setSessions] = useState<Schemas['Session'][] | null>(null);
   const [confirming, setConfirming] = useState(false);
@@ -372,7 +374,7 @@ function SessionsSection() {
                 </p>
                 <p className="text-xs text-muted">
                   {t('settings.sessions.lastActive', {
-                    time: format.relativeTime(new Date(session.lastUsedAt)),
+                    time: format.relativeTime(new Date(session.lastUsedAt), now),
                   })}
                   {session.coarseLocation ? ` · ${session.coarseLocation}` : ''}
                 </p>

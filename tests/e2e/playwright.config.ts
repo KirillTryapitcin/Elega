@@ -3,6 +3,7 @@ import { defineConfig, devices } from '@playwright/test';
 // Runs against the Compose stack: `docker compose up --build -d --wait` first.
 export default defineConfig({
   testDir: './specs',
+  globalSetup: './global-setup.ts',
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
   retries: 0,
