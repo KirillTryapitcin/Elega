@@ -10,7 +10,9 @@
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "vitest run --project unit",
     "test:integration": "vitest run --project integration",
-    "db:migrate": "node --env-file-if-exists=../../.env dist/db/migrate-cli.js"
+    "db:migrate": "node --env-file-if-exists=../../.env dist/db/migrate-cli.js",
+    "seed": "node --env-file-if-exists=../../.env dist/cli/seed.js",
+    "invites:create": "node --env-file-if-exists=../../.env dist/cli/invites.js"
   },
   "dependencies": {
     "@elega/shared": "workspace:*",

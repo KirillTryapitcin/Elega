@@ -16,6 +16,8 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "db:migrate": "pnpm --filter @elega/api db:migrate",
+    "seed": "pnpm --filter @elega/api seed",
+    "invites:create": "pnpm --filter @elega/api invites:create",
     "api:generate": "pnpm --filter @elega/api-client generate",
     "storybook": "pnpm --filter @elega/ui storybook",
     "prepare": "husky",
