@@ -1,0 +1,8 @@
+@import 'tailwindcss';
+@import '@fontsource-variable/onest';
+@import '../src/theme.css';
+@source '../src';
+
+body {
+  background: var(--elega-bg);
+}
