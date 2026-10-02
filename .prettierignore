@@ -1,0 +1,7 @@
+pnpm-lock.yaml
+docs/
+packages/api-client/src/schema.d.ts
+.next/
+dist/
+coverage/
+storybook-static/

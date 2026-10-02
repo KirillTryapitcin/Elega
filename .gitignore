@@ -10,3 +10,8 @@ coverage/
 .env.*
 !.env.example
 .DS_Store
+storybook-static/
+*.tsbuildinfo
+next-env.d.ts
+test-results/
+playwright-report/
