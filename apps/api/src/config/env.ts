@@ -2,6 +2,28 @@ import { z } from 'zod';
 
 const LOCAL_ONLY_MARKER = 'local_only';
 
+/** S3 bucket naming rules: lowercase letters, digits, dots and hyphens, 3 to 63 characters. */
+const bucketSchema = z
+  .string()
+  .regex(/^[a-z0-9][a-z0-9.-]{1,61}[a-z0-9]$/, { message: 'expected an S3 bucket name' });
+
+/**
+ * An S3 endpoint is an origin only (scheme, host, port). Presigned URLs sign the host, and the
+ * web CSP appends the bucket path to the public endpoint, so a path or credentials would break
+ * both silently.
+ */
+const s3EndpointSchema = z.url({ protocol: /^https?$/ }).transform((value, ctx) => {
+  const url = new URL(value);
+  if (url.username || url.password || url.pathname !== '/' || url.search || url.hash) {
+    ctx.addIssue({
+      code: 'custom',
+      message: 'expected an origin without path, query or credentials',
+    });
+    return z.NEVER;
+  }
+  return url.origin;
+});
+
 /** `id:secret,id:secret`; each secret at least 32 characters. */
 const keyListSchema = z.string().transform((value, ctx) => {
   const keys = value
@@ -59,6 +81,21 @@ const envSchema = z
     LEGAL_TERMS_VERSION: z.string().min(1).default('2026-10-01'),
     LEGAL_PRIVACY_VERSION: z.string().min(1).default('2026-10-01'),
     LEGAL_PD_PROCESSING_VERSION: z.string().min(1).default('2026-10-01'),
+    /** Version of the Art. 10.1 consent text; a bump invalidates earlier consents. */
+    LEGAL_PD_DISSEMINATION_VERSION: z.string().min(1).default('2026-10-01'),
+    /** S3 API endpoint the API itself calls (HEAD, PUT, health check). */
+    S3_ENDPOINT: s3EndpointSchema,
+    /** Endpoint the browser reaches; presigned URLs are signed for this host. */
+    S3_PUBLIC_ENDPOINT: s3EndpointSchema,
+    S3_REGION: z.string().min(1).default('us-east-1'),
+    /** Credentials of the API's own storage identity (no list, no bucket admin). */
+    S3_ACCESS_KEY: z.string().min(1),
+    S3_SECRET_KEY: z.string().min(1),
+    S3_BUCKET_PRIVATE: bucketSchema,
+    /** Provisioned for public-audience content later; unused in M2 but validated. */
+    S3_BUCKET_PUBLIC: bucketSchema,
+    /** Path-style URLs (`endpoint/bucket/key`); SeaweedFS and most RU providers need them. */
+    S3_FORCE_PATH_STYLE: z.stringbool({ truthy: ['true'], falsy: ['false'] }).default(true),
     VK_CLIENT_ID: z.string().min(1).optional(),
     YANDEX_CLIENT_ID: z.string().min(1).optional(),
     YANDEX_CLIENT_SECRET: z.string().min(1).optional(),
@@ -70,6 +107,13 @@ const envSchema = z
     APP_ENV: env.APP_ENV ?? (env.NODE_ENV === 'production' ? 'production' : 'local'),
   }))
   .superRefine((env, ctx) => {
+    if (env.S3_BUCKET_PRIVATE === env.S3_BUCKET_PUBLIC) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['S3_BUCKET_PUBLIC'],
+        message: 'must differ from S3_BUCKET_PRIVATE',
+      });
+    }
     if (env.APP_ENV !== 'production' && env.APP_ENV !== 'staging') return;
     // Local compose credentials carry a marker so they can never boot a production process.
     for (const [key, value] of Object.entries(env)) {
@@ -84,6 +128,10 @@ const envSchema = z
     }
     if (!env.APP_BASE_URL.startsWith('https://')) {
       ctx.addIssue({ code: 'custom', path: ['APP_BASE_URL'], message: 'must be https' });
+    }
+    // Signed media URLs travel to browsers; plain http would leak them and break mixed content.
+    if (!env.S3_PUBLIC_ENDPOINT.startsWith('https://')) {
+      ctx.addIssue({ code: 'custom', path: ['S3_PUBLIC_ENDPOINT'], message: 'must be https' });
     }
   });
 

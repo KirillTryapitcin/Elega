@@ -49,7 +49,7 @@ jobs:
         run: pnpm audit --prod --audit-level high
 
   integration:
-    name: Integration tests (Postgres, Redis via Testcontainers)
+    name: Integration tests (Postgres, Redis, Mailpit, SeaweedFS via Testcontainers)
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -59,10 +59,13 @@ jobs:
           node-version-file: .nvmrc
           cache: pnpm
       - run: pnpm install --frozen-lockfile
+      # Same pins as docker-compose.yml; turbo passes TEST_* through to the test tasks.
       - run: pnpm test:integration
         env:
           TEST_POSTGRES_IMAGE: postgres:16.15-alpine
           TEST_REDIS_IMAGE: redis:7.4.11-alpine
+          TEST_MAILPIT_IMAGE: axllent/mailpit:v1.31.3
+          TEST_S3_IMAGE: chrislusf/seaweedfs:4.48
 
   stack:
     name: docker compose up --build + e2e smoke

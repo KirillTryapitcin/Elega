@@ -12,6 +12,15 @@ x-node-env: &node-env
   # Open the stack at this exact origin: refresh and logout check Origin against it.
   APP_BASE_URL: http://localhost:8080
 
+# Object storage settings shared by the API and the media worker. Each of them adds its own
+# identity (infra/seaweedfs/s3.json): S3_ACCESS_KEY and S3_SECRET_KEY differ per service.
+x-s3-env: &s3-env
+  S3_ENDPOINT: http://s3:8333
+  S3_REGION: us-east-1
+  S3_FORCE_PATH_STYLE: 'true'
+  S3_BUCKET_PRIVATE: elega-private
+  S3_BUCKET_PUBLIC: elega-public
+
 services:
   postgres:
     image: postgres:16.15-alpine
@@ -42,6 +51,9 @@ services:
       timeout: 3s
       retries: 20
 
+  # Buckets are created by -bucket; s3.json has no Admin and no anonymous identity. Only S3 is
+  # published; the filer (8888) stays reachable without auth inside the compose network.
+  # CORS: the compose origin and the `pnpm dev` web origin; any other origin is refused.
   s3:
     image: chrislusf/seaweedfs:4.48
     command:
@@ -50,6 +62,12 @@ services:
         '-dir=/data',
         '-s3.config=/etc/seaweedfs/s3.json',
         '-bucket=elega-private,elega-public',
+        '-webdav=false',
+        '-admin.ui=false',
+        '-s3.port.iceberg=0',
+        '-s3.port.lance=0',
+        '-s3.allowedOrigins=http://localhost:8080,http://localhost:3000',
+        '-master.telemetry=false',
       ]
     volumes:
       - s3-data:/data
@@ -68,6 +86,23 @@ services:
       - 127.0.0.1:1025:1025
       - 127.0.0.1:8025:8025
 
+  # Optional antivirus: `ELEGA_ANTIVIRUS_MODE=clamd docker compose --profile av up -d`.
+  # Needs about 1 GB of RAM; the first start downloads signatures and takes several minutes.
+  clamav:
+    image: clamav/clamav:1.5.4
+    profiles: [av]
+    volumes:
+      - clamav-data:/var/lib/clamav
+    ports:
+      - 127.0.0.1:3310:3310
+    healthcheck:
+      test: ['CMD-SHELL', 'clamdcheck.sh']
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 600s
+    restart: unless-stopped
+
   migrate:
     build: { context: ., dockerfile: infra/docker/Dockerfile, target: api }
     image: elega/api:local
@@ -80,21 +115,29 @@ services:
   api:
     image: elega/api:local
     environment:
-      <<: *node-env
+      <<: [*node-env, *s3-env]
       PORT: 3001
       TRUST_PROXY_HOPS: 1
       APP_SECRET: elega_local_only_app_secret_0123456789abcdef
       REGISTRATION_MODE: invite_only
+      # Presigned URLs are signed for the host the browser uses, not for s3:8333.
+      S3_PUBLIC_ENDPOINT: http://localhost:8333
+      # Read and write in the private bucket; no list, no bucket admin.
+      S3_ACCESS_KEY: elega_local_only_api
+      S3_SECRET_KEY: elega_local_only_api_secret
     depends_on:
       migrate: { condition: service_completed_successfully }
       redis: { condition: service_healthy }
+      s3: { condition: service_healthy }
     restart: unless-stopped
 
+  # Core role: outbox relay, email, heartbeat. Holds the SMTP credentials, no storage access.
   worker:
     build: { context: ., dockerfile: infra/docker/Dockerfile, target: worker }
     image: elega/worker:local
     environment:
       <<: *node-env
+      WORKER_ROLES: core
       HEALTH_PORT: 3002
       HEARTBEAT_EVERY_MS: 10000
       SMTP_URL: smtp://mailpit:1025
@@ -105,9 +148,45 @@ services:
       mailpit: { condition: service_started }
     restart: unless-stopped
 
+  # Media role: decodes untrusted images, so it runs apart from the core role with its own
+  # storage identity, no SMTP credentials, a memory cap and a read-only filesystem.
+  worker-media:
+    image: elega/worker:local
+    environment:
+      <<: [*node-env, *s3-env]
+      WORKER_ROLES: media
+      HEALTH_PORT: 3002
+      HEARTBEAT_EVERY_MS: 10000
+      # Read, write and list in the private bucket; no bucket admin.
+      S3_ACCESS_KEY: elega_local_only_worker
+      S3_SECRET_KEY: elega_local_only_worker_secret
+      MEDIA_CONCURRENCY: 2
+      ANTIVIRUS_MODE: ${ELEGA_ANTIVIRUS_MODE:-off}
+      CLAMAV_HOST: clamav
+    mem_limit: 1g
+    read_only: true
+    tmpfs:
+      - /tmp
+    cap_drop: [ALL]
+    security_opt: ['no-new-privileges:true']
+    depends_on:
+      migrate: { condition: service_completed_successfully }
+      redis: { condition: service_healthy }
+      s3: { condition: service_healthy }
+      clamav: { condition: service_healthy, required: false }
+    restart: unless-stopped
+
   web:
     build: { context: ., dockerfile: infra/docker/Dockerfile, target: web }
     image: elega/web:local
+    # Not the shared node env: the web needs no database or Redis credentials.
+    environment:
+      APP_BASE_URL: http://localhost:8080
+      # Server-side fetches go straight to the API, not through Caddy.
+      API_INTERNAL_URL: http://api:3001
+      # CSP img-src and connect-src: signed media URLs and presigned uploads.
+      S3_PUBLIC_ENDPOINT: http://localhost:8333
+      S3_BUCKET_PRIVATE: elega-private
     depends_on:
       api: { condition: service_healthy }
     restart: unless-stopped
@@ -127,3 +206,4 @@ volumes:
   postgres-data:
   redis-data:
   s3-data:
+  clamav-data:

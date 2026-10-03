@@ -1,14 +1,24 @@
 {
   "identities": [
     {
-      "name": "elega-local",
+      "name": "elega-api",
       "credentials": [
         {
-          "accessKey": "elega_local_only",
-          "secretKey": "elega_local_only_secret"
+          "accessKey": "elega_local_only_api",
+          "secretKey": "elega_local_only_api_secret"
         }
       ],
-      "actions": ["Admin", "Read", "Write", "List", "Tagging"]
+      "actions": ["Read:elega-private", "Write:elega-private"]
+    },
+    {
+      "name": "elega-worker",
+      "credentials": [
+        {
+          "accessKey": "elega_local_only_worker",
+          "secretKey": "elega_local_only_worker_secret"
+        }
+      ],
+      "actions": ["Read:elega-private", "Write:elega-private", "List:elega-private"]
     }
   ]
 }

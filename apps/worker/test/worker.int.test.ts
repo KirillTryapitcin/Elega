@@ -33,6 +33,8 @@ beforeAll(async () => {
     await pool.query(readFileSync(`${MIGRATIONS}/${file}`, 'utf8'));
   }
   const env = loadEnv({
+    // Heartbeat and email are core work; the media role has its own tests.
+    WORKER_ROLES: 'core',
     REDIS_URL: redis.getConnectionUrl(),
     DATABASE_URL: postgres.getConnectionUri(),
     SMTP_URL: `smtp://${mailpit.getHost()}:${mailpit.getMappedPort(1025)}`,
