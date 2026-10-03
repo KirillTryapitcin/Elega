@@ -184,6 +184,7 @@ export class AuthService {
       sessionId: rotated.session.sessionId,
       role: user.role,
       minor: isMinor(user.birthdate),
+      emailVerified: user.emailVerifiedAt !== null,
     };
     return { session: rotated.session, result: await this.accounts.authResult(authUser) };
   }

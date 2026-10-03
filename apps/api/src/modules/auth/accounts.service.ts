@@ -61,6 +61,8 @@ export class AccountsService {
       terms: this.env.LEGAL_TERMS_VERSION,
       privacy: this.env.LEGAL_PRIVACY_VERSION,
       pdProcessing: this.env.LEGAL_PD_PROCESSING_VERSION,
+      // Art. 10.1 consent; asked when a profile is opened to everyone, not at sign-up.
+      pdDissemination: this.env.LEGAL_PD_DISSEMINATION_VERSION,
     };
   }
 
@@ -196,6 +198,7 @@ export class AccountsService {
           sessionId: session.sessionId,
           role: created.role,
           minor,
+          emailVerified: input.emailVerified,
         };
         return { user, session, result: await this.authResult(user, tx) };
       });
@@ -215,6 +218,7 @@ export class AccountsService {
       id: string;
       role: AuthUser['role'];
       birthdate: string;
+      emailVerifiedAt: Date | null;
       email: string;
       locale: 'ru' | 'en';
     },
@@ -236,6 +240,7 @@ export class AccountsService {
       sessionId: session.sessionId,
       role: account.role,
       minor: isMinor(account.birthdate),
+      emailVerified: account.emailVerifiedAt !== null,
     };
     await audit(db, {
       actorId: account.id,

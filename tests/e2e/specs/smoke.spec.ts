@@ -38,7 +38,10 @@ test('home page has no serious accessibility violations', async ({ page }) => {
 test('API is reachable through the proxy and ready', async ({ request }) => {
   const res = await request.get('/api/v1/readyz');
   expect(res.status()).toBe(200);
-  expect(await res.json()).toEqual({ status: 'ok', checks: { database: 'ok', redis: 'ok' } });
+  expect(await res.json()).toEqual({
+    status: 'ok',
+    checks: { database: 'ok', redis: 'ok', storage: 'ok' },
+  });
 });
 
 test('API errors carry the proxy request id', async ({ request }) => {

@@ -1,7 +1,10 @@
 import type { NestFastifyApplication } from '@nestjs/platform-fastify';
+import { decodeJwt } from 'jose';
 import { Secret, TOTP } from 'otpauth';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
+import { setFlag } from '../src/cli/flag-command.js';
 import { Invites } from '../src/modules/auth/index.js';
+import { FeatureFlags } from '../src/platform/feature-flags.js';
 import { getDb } from './db.js';
 import {
   APP_BASE_URL,
@@ -13,10 +16,11 @@ import {
 } from './harness.js';
 
 const RT = '__Host-elega_rt';
+const LEGAL_VERSION = '2026-10-01';
 const LEGAL = {
-  acceptedTermsVersion: '2026-10-01',
-  acceptedPrivacyVersion: '2026-10-01',
-  acceptedPdProcessingVersion: '2026-10-01',
+  acceptedTermsVersion: LEGAL_VERSION,
+  acceptedPrivacyVersion: LEGAL_VERSION,
+  acceptedPdProcessingVersion: LEGAL_VERSION,
 };
 const PASSWORD = 'correct horse battery staple';
 
@@ -30,7 +34,7 @@ let ipCounter = 0;
 const nextIp = () => `10.0.${Math.floor(++ipCounter / 250)}.${(ipCounter % 250) + 1}`;
 
 beforeAll(async () => {
-  infra = await startInfra({ VK_CLIENT_ID: 'vk-test-client' });
+  infra = await startInfra({ env: { VK_CLIENT_ID: 'vk-test-client' } });
   fake = await startFakeProvider(() => vkProfile);
   app = await buildApp(fake.endpoints);
 });
@@ -155,6 +159,26 @@ describe('registration', () => {
       payload: { token },
     });
     expect(again.statusCode).toBe(400);
+  });
+
+  it('carries email verification in the access token; it takes effect on the next refresh', async () => {
+    const { res, body } = await register();
+    expect(decodeJwt(res.json().accessToken)).toMatchObject({ ev: false, minor: false });
+    const token = await lastEmailToken(body.email, 'verify_email');
+    await app.inject({ method: 'POST', url: '/api/v1/auth/verify-email', payload: { token } });
+    // Verification changes nothing server-side: the old token stays valid with ev false.
+    expect((await me(res.json().accessToken)).json().emailVerified).toBe(true);
+    const rotated = await refresh(cookieValue(res.headers['set-cookie'], RT)!, nextIp());
+    expect(rotated.statusCode).toBe(200);
+    expect(decodeJwt(rotated.json().accessToken)).toMatchObject({ ev: true });
+
+    const login = await app.inject({
+      method: 'POST',
+      url: '/api/v1/auth/login',
+      payload: { identifier: body.email, password: PASSWORD },
+      remoteAddress: nextIp(),
+    });
+    expect(decodeJwt(login.json().accessToken)).toMatchObject({ ev: true });
   });
 
   it('rejects under-14s, disposable domains, weak passwords, reserved names and outdated consents', async () => {
@@ -669,12 +693,62 @@ describe('VK ID sign-in', () => {
 });
 
 describe('public config', () => {
-  it('reports registration mode, providers and legal versions', async () => {
-    const res = await app.inject({ method: 'GET', url: '/api/v1/config/public' });
-    expect(res.json()).toEqual({
+  const config = async () =>
+    (await app.inject({ method: 'GET', url: '/api/v1/config/public' })).json();
+
+  it('reports registration mode, providers, legal versions and features', async () => {
+    expect(await config()).toEqual({
       registration: 'invite_only',
       oauthProviders: ['vk'],
-      legalVersions: { terms: '2026-10-01', privacy: '2026-10-01', pdProcessing: '2026-10-01' },
+      legalVersions: {
+        terms: LEGAL_VERSION,
+        privacy: LEGAL_VERSION,
+        pdProcessing: LEGAL_VERSION,
+        pdDissemination: LEGAL_VERSION,
+      },
+      features: { publicProfiles: false },
     });
+    // A stale bearer does not break routes that ignore the viewer; only OptionalUser routes 401.
+    const stale = await app.inject({
+      method: 'GET',
+      url: '/api/v1/config/public',
+      headers: { authorization: 'Bearer expired-or-revoked' },
+    });
+    expect(stale.statusCode).toBe(200);
+  });
+
+  it('follows the public-profiles flag set by the flags CLI, with an audit entry', async () => {
+    const flags = app.get(FeatureFlags, { strict: false });
+    const db = getDb(infra);
+    expect(await setFlag(db, { key: 'profiles.public_access', enabled: true })).toEqual({
+      key: 'profiles.public_access',
+      wasEnabled: false,
+      enabled: true,
+    });
+    flags.invalidate();
+    expect((await config()).features).toEqual({ publicProfiles: true });
+
+    await setFlag(db, { key: 'profiles.public_access', enabled: false });
+    flags.invalidate('profiles.public_access');
+    expect((await config()).features).toEqual({ publicProfiles: false });
+    const { rows } = await infra.pool.query<{ before_json: unknown; after_json: unknown }>(
+      `SELECT before_json, after_json FROM audit_log WHERE action = 'feature_flag.set'
+       ORDER BY id`,
+    );
+    expect(rows).toEqual([
+      {
+        before_json: { key: 'profiles.public_access', missing: true },
+        after_json: {
+          key: 'profiles.public_access',
+          enabled: true,
+          rolloutPercent: 100,
+          via: 'cli',
+        },
+      },
+      {
+        before_json: { key: 'profiles.public_access', enabled: true, rolloutPercent: 100 },
+        after_json: { key: 'profiles.public_access', enabled: false, via: 'cli' },
+      },
+    ]);
   });
 });

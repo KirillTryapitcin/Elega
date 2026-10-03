@@ -1,6 +1,7 @@
 import { Controller, Get, Inject } from '@nestjs/common';
 import type { Schemas } from '@elega/api-client';
 import { ENV, type Env } from '../../config/env.js';
+import { FeatureFlags } from '../../platform/feature-flags.js';
 import { Public } from '../../platform/request-context.js';
 import { AccountsService } from './accounts.service.js';
 import { OAuthService } from './oauth/oauth.service.js';
@@ -12,6 +13,7 @@ export class PublicConfigController {
     @Inject(ENV) private readonly env: Env,
     private readonly accounts: AccountsService,
     private readonly oauth: OAuthService,
+    private readonly flags: FeatureFlags,
   ) {}
 
   @Get('public')
@@ -20,6 +22,7 @@ export class PublicConfigController {
       registration: this.env.REGISTRATION_MODE,
       oauthProviders: await this.oauth.enabledProviders(),
       legalVersions: this.accounts.legalVersions,
+      features: { publicProfiles: await this.flags.isEnabled('profiles.public_access') },
     };
   }
 }

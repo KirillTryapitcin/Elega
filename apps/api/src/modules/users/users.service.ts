@@ -3,6 +3,7 @@ import { isMinor, minorSettingViolations, usernameProblem } from '@elega/shared'
 import { and, desc, eq, gt, isNotNull, ne } from 'drizzle-orm';
 import { DB, type Db, type Executor } from '../../platform/database.js';
 import { AppError } from '../../platform/errors/app-error.js';
+import { displayHost } from '../../platform/link-policy.js';
 import {
   totpSecrets,
   userProfiles,
@@ -30,13 +31,21 @@ export class UsersService {
 
   async getMe(userId: string, db: Executor = this.db): Promise<Me> {
     const [row] = await db
-      .select({ user: users, profile: userProfiles, totpConfirmedAt: totpSecrets.confirmedAt })
+      .select({
+        user: users,
+        profile: userProfiles,
+        settings: userSettings,
+        totpConfirmedAt: totpSecrets.confirmedAt,
+      })
       .from(users)
       .leftJoin(userProfiles, eq(userProfiles.userId, users.id))
+      .leftJoin(userSettings, eq(userSettings.userId, users.id))
       .leftJoin(totpSecrets, eq(totpSecrets.userId, users.id))
       .where(eq(users.id, userId));
     if (!row) throw new AppError('unauthorized', 'Authentication required');
-    const { user, profile } = row;
+    const { user, profile, settings } = row;
+    // Placeholder until the profiles slice (M2) fills the profile from the shared rules.
+    const link = (url: string) => ({ url, host: displayHost(url) });
     return {
       id: user.id,
       email: user.email,
@@ -54,17 +63,21 @@ export class UsersService {
         city: profile?.city ?? null,
         workplace: profile?.workplace ?? null,
         education: profile?.education ?? null,
-        website: profile?.website ?? null,
+        website: profile?.website ? link(profile.website) : null,
         birthday: user.birthdate,
         pronouns: profile?.pronouns ?? null,
         relationshipStatus: profile?.relationshipStatus ?? null,
-        links: profile?.linksJson ?? [],
+        links: (profile?.linksJson ?? []).map(link),
         avatar: null,
         cover: null,
         fieldAudience: (profile?.profileVisibilityJson ?? {}) as NonNullable<
           Me['profile']
         >['fieldAudience'],
       },
+      dataSaver: settings?.dataSaver ?? false,
+      profileHintDismissed: settings?.profileHintDismissed ?? false,
+      onboardingDone: settings?.onboardingDone ?? false,
+      anonVisible: false,
     };
   }
 

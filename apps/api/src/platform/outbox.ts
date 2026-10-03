@@ -25,20 +25,43 @@ export interface EmailRequest {
   params?: Record<string, string>;
 }
 
+export interface OutboxEvent {
+  /** What the event is about, e.g. `user` or `media`. */
+  aggregateType: string;
+  aggregateId: string;
+  /** Dispatch key for the worker relay, e.g. `media.process`. */
+  eventType: string;
+  /** Versioned by the event itself (`{ v: 1, ... }`); never secrets beyond what the job needs. */
+  payload: Record<string, unknown>;
+}
+
 /**
- * Writes an event in the caller's transaction (brief §6.5); the worker relays it. The payload
- * may carry a one-time link, so the worker clears it once the email is handed to the queue.
+ * Writes an event in the caller's transaction (brief §6.5), so it is published if and only if
+ * the change commits. The worker relay dispatches it by `eventType`.
+ */
+export async function publish(db: Executor, event: OutboxEvent): Promise<void> {
+  await db.insert(outbox).values({
+    aggregateType: event.aggregateType,
+    aggregateId: event.aggregateId,
+    eventType: event.eventType,
+    payloadJson: event.payload,
+  });
+}
+
+/**
+ * Queues a transactional email. The payload may carry a one-time link, so the worker clears it
+ * once the email is handed to the queue.
  */
 export async function enqueueEmail(
   db: Executor,
   userId: string,
   email: EmailRequest,
 ): Promise<void> {
-  await db.insert(outbox).values({
+  await publish(db, {
     aggregateType: 'user',
     aggregateId: userId,
     eventType: 'email.requested',
-    payloadJson: { ...email },
+    payload: { ...email },
   });
 }
 
@@ -47,6 +70,8 @@ export interface AuditEntry {
   action: string;
   entityType: string;
   entityId?: string | null;
+  /** State before the change, for updates; names of changed fields rather than personal data. */
+  before?: Record<string, unknown>;
   after?: Record<string, unknown>;
   ipHash?: Buffer;
   userAgent?: string;
@@ -59,6 +84,7 @@ export async function audit(db: Executor, entry: AuditEntry): Promise<void> {
     action: entry.action,
     entityType: entry.entityType,
     entityId: entry.entityId ?? null,
+    beforeJson: entry.before ?? null,
     afterJson: entry.after ?? null,
     ipHash: entry.ipHash ?? null,
     userAgent: entry.userAgent ?? null,

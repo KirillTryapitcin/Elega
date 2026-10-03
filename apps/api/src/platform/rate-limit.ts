@@ -18,7 +18,10 @@ import { REDIS } from './redis.js';
 export interface RateRule {
   limit: number;
   windowSec: number;
-  /** Who the counter belongs to when applied by the decorator. */
+  /**
+   * Who the counter belongs to when applied by the decorator. `user` falls back to the client IP
+   * for anonymous callers (public routes), so it never leaves a route unlimited.
+   */
   by: 'ip' | 'user';
 }
 
@@ -45,6 +48,14 @@ export const RATE_RULES = {
   'auth.sensitive': { limit: 10, windowSec: 3600, by: 'user' },
   'auth.oauth': { limit: 30, windowSec: 600, by: 'ip' },
   'account.write': { limit: 60, windowSec: 3600, by: 'user' },
+  'media.upload': { limit: 60, windowSec: 3600, by: 'user' },
+  // Profile reads: per member when signed in (carrier NAT puts many members behind one IP),
+  // per IP for anonymous visitors.
+  'profile.read': { limit: 300, windowSec: 300, by: 'user' },
+  // Username probes (a taken name answers 409): counted only on that outcome, so checking a
+  // free name costs nothing. Logged as security events (brief §20.2).
+  'account.username_taken': { limit: 10, windowSec: 86_400, by: 'user' },
+  'auth.register.username_taken': { limit: 20, windowSec: 86_400, by: 'ip' },
 } as const satisfies Record<string, RateRule>;
 
 export type RateRuleName = keyof typeof RATE_RULES;
@@ -160,6 +171,14 @@ export const NoRateLimit = () => SetMetadata(NO_RATE_LIMIT_KEY, true);
 /** Applies a named rule to the route, keyed by client IP or by user per the rule. */
 export const RateLimit = (rule: RateRuleName) => SetMetadata(RATE_LIMIT_KEY, rule);
 
+/** The counter key of a decorator-applied rule: the user when signed in, else the client IP. */
+export function rateSubject(
+  rule: RateRule,
+  request: Pick<FastifyRequest, 'authUser' | 'ip'>,
+): string {
+  return rule.by === 'user' && request.authUser ? request.authUser.id : request.ip;
+}
+
 export function setRateHeaders(reply: FastifyReply, result: RateResult): void {
   void reply.header('RateLimit-Limit', result.limit);
   void reply.header('RateLimit-Remaining', result.remaining);
@@ -205,7 +224,7 @@ export class RateLimitInterceptor implements NestInterceptor {
     );
     if (ruleName) {
       const rule = RATE_RULES[ruleName];
-      const subject = rule.by === 'user' ? (request.authUser?.id ?? request.ip) : request.ip;
+      const subject = rateSubject(rule, request);
       const result = await this.limiter.consume(ruleName, subject);
       shown = result;
       if (!result.allowed) {

@@ -16,7 +16,11 @@ interface SigningKey {
   publicKey: KeyObject;
 }
 
-/** EdDSA (Ed25519) access tokens, ADR-004. Claims: sub, sid, role, minor; kid in the header. */
+/**
+ * EdDSA (Ed25519) access tokens, ADR-004. Claims: sub, sid, role, minor, ev (email verified when
+ * issued); kid in the header. Verifying an email changes nothing server-side: the client
+ * refreshes to get a token with `ev: true`.
+ */
 @Injectable()
 export class AccessTokens {
   private readonly keys: SigningKey[];
@@ -35,7 +39,12 @@ export class AccessTokens {
   async sign(user: AuthUser): Promise<string> {
     const [key] = this.keys;
     if (!key) throw new Error('No JWT signing key configured');
-    return new SignJWT({ sid: user.sessionId, role: user.role, minor: user.minor })
+    return new SignJWT({
+      sid: user.sessionId,
+      role: user.role,
+      minor: user.minor,
+      ev: user.emailVerified,
+    })
       .setProtectedHeader({ alg: 'EdDSA', kid: key.id, typ: 'at+jwt' })
       .setIssuer(ISSUER)
       .setAudience(AUDIENCE)
@@ -57,16 +66,18 @@ export class AccessTokens {
         },
         { algorithms: ['EdDSA'], issuer: ISSUER, audience: AUDIENCE, typ: 'at+jwt' },
       );
-      const { sub, sid, role, minor } = payload;
+      const { sub, sid, role, minor, ev } = payload;
+      // Every claim is required: a token without `ev` predates M2 and must be refreshed.
       if (
         typeof sub !== 'string' ||
         typeof sid !== 'string' ||
         typeof minor !== 'boolean' ||
+        typeof ev !== 'boolean' ||
         (role !== 'user' && role !== 'moderator' && role !== 'analyst' && role !== 'admin')
       ) {
         return null;
       }
-      return { id: sub, sessionId: sid, role, minor };
+      return { id: sub, sessionId: sid, role, minor, emailVerified: ev };
     } catch {
       return null;
     }

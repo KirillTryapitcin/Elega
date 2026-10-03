@@ -14,6 +14,7 @@ import {
 import type { FastifyReply, FastifyRequest } from 'fastify';
 import { ENV, type Env } from '../../config/env.js';
 import { AppError } from '../../platform/errors/app-error.js';
+import { type PageQuery, pageQuerySchema, uuidParamSchema } from '../../platform/pagination.js';
 import { RateLimit } from '../../platform/rate-limit.js';
 import {
   type AuthUser,
@@ -32,7 +33,6 @@ import {
   loginSchema,
   type MfaChallenge,
   mfaLoginSchema,
-  pageQuerySchema,
   type PasswordConfirm,
   passwordConfirmSchema,
   providerSchema,
@@ -41,7 +41,6 @@ import {
   resetPasswordSchema,
   tokenSchema,
   totpConfirmSchema,
-  uuidParamSchema,
 } from './auth.schemas.js';
 import { AuthService, type SignedIn } from './auth.service.js';
 import {
@@ -236,7 +235,7 @@ export class AuthController {
   @Get('sessions')
   listSessions(
     @CurrentUser() user: AuthUser,
-    @Query({ schema: pageQuerySchema }) query: { limit: number; cursor?: string },
+    @Query({ schema: pageQuerySchema }) query: PageQuery,
   ) {
     return this.sessions.list(user.id, user.sessionId, query.limit, query.cursor);
   }

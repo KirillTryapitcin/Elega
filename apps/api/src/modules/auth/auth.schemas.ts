@@ -1,6 +1,7 @@
 import type { Schemas } from '@elega/api-client';
 import {
   birthdateSchema,
+  displayNameSchema,
   PASSWORD_MAX_LENGTH,
   PASSWORD_MIN_LENGTH,
   usernameSchema,
@@ -16,13 +17,7 @@ const email = z.string().trim().toLowerCase().max(254).pipe(z.email());
 const anyPassword = z.string().min(1).max(PASSWORD_MAX_LENGTH);
 const newPassword = z.string().min(PASSWORD_MIN_LENGTH).max(PASSWORD_MAX_LENGTH);
 const token = z.string().min(16).max(128);
-const displayName = z
-  .string()
-  .trim()
-  .min(1)
-  .max(64)
-  // No control characters or bidi overrides in names shown to other people.
-  .refine((value) => !/[\p{Cc}\p{Bidi_Control}]/u.test(value), 'display_name_invalid');
+const displayName = displayNameSchema;
 
 const consents = {
   acceptedTermsVersion: z.string().min(1).max(32),
@@ -80,11 +75,5 @@ export const passwordConfirmSchema = z.strictObject({
 export type PasswordConfirm = z.infer<typeof passwordConfirmSchema>;
 export const totpConfirmSchema = z.strictObject({ code: z.string().regex(/^[0-9]{6}$/) });
 
-export const pageQuerySchema = z.object({
-  limit: z.coerce.number().int().min(1).max(50).default(20),
-  cursor: z.string().max(512).optional(),
-});
-
-export const uuidParamSchema = z.uuid();
 export const providerSchema = z.enum(['vk', 'yandex', 'google']);
 export type OAuthProviderName = z.infer<typeof providerSchema>;

@@ -1,5 +1,5 @@
 import type { Schemas } from '@elega/api-client';
-import { usernameSchema } from '@elega/shared';
+import { displayNameSchema, usernameSchema } from '@elega/shared';
 import { z } from 'zod';
 
 export type Me = Schemas['Me'];
@@ -15,7 +15,7 @@ const timezoneSchema = z.string().refine((zone) => {
 }, 'timezone_invalid');
 
 export const meUpdateSchema = z.strictObject({
-  displayName: z.string().trim().min(1).max(64).optional(),
+  displayName: displayNameSchema.optional(),
   username: usernameSchema.optional(),
   locale: z.enum(['ru', 'en']).optional(),
   timezone: timezoneSchema.optional(),

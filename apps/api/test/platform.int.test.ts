@@ -10,6 +10,9 @@ import { createApp } from '../src/app.js';
 import { migrate, readMigrations } from '../src/db/migrate.js';
 import * as schema from '../src/db/schema.js';
 import { getTableConfig, PgTable } from 'drizzle-orm/pg-core';
+import { isBlockedDomain } from '../src/platform/link-policy.js';
+import { type StartedStorage, startStorage, TEST_IMAGES } from './harness.js';
+import { drizzle } from 'drizzle-orm/node-postgres';
 
 const MIGRATIONS = fileURLToPath(new URL('../migrations', import.meta.url));
 const SPEC = parse(
@@ -19,12 +22,14 @@ const registered: Array<{ method: string; url: string }> = [];
 
 let postgres: StartedPostgreSqlContainer;
 let redis: StartedRedisContainer;
+let storage: StartedStorage;
 let app: NestFastifyApplication;
 
 beforeAll(async () => {
-  [postgres, redis] = await Promise.all([
-    new PostgreSqlContainer(process.env.TEST_POSTGRES_IMAGE ?? 'postgres:16-alpine').start(),
-    new RedisContainer(process.env.TEST_REDIS_IMAGE ?? 'redis:7-alpine').start(),
+  [postgres, redis, storage] = await Promise.all([
+    new PostgreSqlContainer(TEST_IMAGES.postgres).start(),
+    new RedisContainer(TEST_IMAGES.redis).start(),
+    startStorage(),
   ]);
   process.env.DATABASE_URL = postgres.getConnectionUri();
   process.env.REDIS_URL = redis.getConnectionUrl();
@@ -32,6 +37,7 @@ beforeAll(async () => {
   process.env.LOG_LEVEL = 'warn';
   process.env.APP_BASE_URL = 'http://elega.test';
   process.env.APP_SECRET = 'integration-test-secret-0123456789abcdef';
+  Object.assign(process.env, storage.env);
   app = await createApp();
   // Routes are registered during init(), so this hook sees every one of them.
   app
@@ -46,7 +52,7 @@ beforeAll(async () => {
 
 afterAll(async () => {
   await app?.close();
-  await Promise.all([postgres?.stop(), redis?.stop()]);
+  await Promise.all([postgres?.stop(), redis?.stop(), storage?.stop()]);
 });
 
 describe('migrations', () => {
@@ -89,6 +95,26 @@ describe('migrations', () => {
   });
 });
 
+describe('link policy', () => {
+  it('blocks a domain, its subdomains and either spelling of an IDN', async () => {
+    const pool = new pg.Pool({ connectionString: postgres.getConnectionUri(), max: 1 });
+    try {
+      await pool.query(
+        "INSERT INTO blocked_domains (domain, reason) VALUES ('Spam.Example', 'test'), ('пример.рф', 'test')",
+      );
+      const db = drizzle({ client: pool });
+      for (const host of ['spam.example', 'cdn.SPAM.example.', 'xn--e1afmkfd.xn--p1ai']) {
+        expect(await isBlockedDomain(db, host), host).toBe(true);
+      }
+      for (const host of ['example', 'notspam.example', 'spam.example.org', '']) {
+        expect(await isBlockedDomain(db, host), host).toBe(false);
+      }
+    } finally {
+      await pool.end();
+    }
+  });
+});
+
 describe('API contract', () => {
   it('every route the API serves is documented in docs/api/openapi.yaml', () => {
     const served = registered
@@ -112,10 +138,13 @@ describe('platform endpoints', () => {
     expect(res.headers['x-request-id']).toMatch(/^[0-9a-f-]{36}$/);
   });
 
-  it('GET /api/v1/readyz checks Postgres and Redis', async () => {
+  it('GET /api/v1/readyz checks Postgres, Redis and object storage', async () => {
     const res = await app.inject({ method: 'GET', url: '/api/v1/readyz' });
     expect(res.statusCode).toBe(200);
-    expect(res.json()).toEqual({ status: 'ok', checks: { database: 'ok', redis: 'ok' } });
+    expect(res.json()).toEqual({
+      status: 'ok',
+      checks: { database: 'ok', redis: 'ok', storage: 'ok' },
+    });
   });
 
   it('unknown routes return the unified error body with the caller request id', async () => {
@@ -148,13 +177,24 @@ describe('platform endpoints', () => {
     expect(res.headers['content-security-policy']).toContain("default-src 'none'");
   });
 
+  // The two tests below stop containers, so they run last and in this order.
+  it('readyz stays in rotation, degraded, when only object storage is gone', async () => {
+    await storage.stop();
+    const res = await app.inject({ method: 'GET', url: '/api/v1/readyz' });
+    expect(res.statusCode).toBe(200);
+    expect(res.json()).toEqual({
+      status: 'degraded',
+      checks: { database: 'ok', redis: 'ok', storage: 'fail' },
+    });
+  });
+
   it('readyz reports down when Redis is gone', async () => {
     await redis.stop();
     const res = await app.inject({ method: 'GET', url: '/api/v1/readyz' });
     expect(res.statusCode).toBe(503);
-    expect(res.json()).toMatchObject({
+    expect(res.json()).toEqual({
       status: 'down',
-      checks: { database: 'ok', redis: 'error' },
+      checks: { database: 'ok', redis: 'fail', storage: 'fail' },
     });
   });
 });
