@@ -6,16 +6,37 @@
   "files": [
     "dist"
   ],
+  "sideEffects": false,
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
       "default": "./dist/index.js"
+    },
+    "./account-rules": {
+      "types": "./dist/account-rules.d.ts",
+      "default": "./dist/account-rules.js"
+    },
+    "./countries": {
+      "types": "./dist/countries.d.ts",
+      "default": "./dist/countries.js"
+    },
+    "./media": {
+      "types": "./dist/media.d.ts",
+      "default": "./dist/media.js"
+    },
+    "./policy": {
+      "types": "./dist/policy/index.d.ts",
+      "default": "./dist/policy/index.js"
+    },
+    "./profiles": {
+      "types": "./dist/profiles.d.ts",
+      "default": "./dist/profiles.js"
     }
   },
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "test": "vitest run"
+    "test": "vitest run --coverage"
   },
   "dependencies": {
     "zod": "4.6.5"
@@ -23,6 +44,7 @@
   "devDependencies": {
     "@elega/config": "workspace:*",
     "@types/node": "22.20.5",
+    "@vitest/coverage-v8": "5.0.3",
     "typescript": "6.0.3",
     "vite": "8.3.2",
     "vitest": "5.0.3",
