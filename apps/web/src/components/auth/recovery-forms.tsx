@@ -1,6 +1,6 @@
 'use client';
 
-import { PASSWORD_MIN_LENGTH } from '@elega/shared';
+import { PASSWORD_MIN_LENGTH } from '@elega/shared/account-rules';
 import { Button, buttonVariants, Input } from '@elega/ui';
 import { useTranslations } from 'next-intl';
 import Link from 'next/link';

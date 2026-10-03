@@ -1,7 +1,7 @@
 'use client';
 
 import type { Schemas } from '@elega/api-client';
-import { MINOR_SETTING_LIMITS } from '@elega/shared';
+import { MINOR_SETTING_LIMITS } from '@elega/shared/account-rules';
 import { useTranslations } from 'next-intl';
 import { useEffect, useState } from 'react';
 import { Checkbox, FormAlert, Select } from '@/components/auth/parts';

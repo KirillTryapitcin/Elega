@@ -43,6 +43,16 @@ export const POLICY_MATRIX: readonly PolicyTable[] = [
       },
       { action: 'Profile: edit', milestone: 'M2', cells: ['N', 'Y', 'N', 'N', 'N', 'N', 'N', 'N'] },
       {
+        action: 'Profile: photos (avatar history)',
+        milestone: 'M2',
+        cells: ['N', 'Y', 'A²', 'A²', 'A²', 'A²', 'N', 'Y³'],
+      },
+      {
+        action: 'Media: upload, status, delete own',
+        milestone: 'M2',
+        cells: ['N', 'Y', 'N', 'N', 'N', 'N', 'N', 'N'],
+      },
+      {
         action: 'Friends list',
         milestone: 'M3',
         cells: ['A²', 'Y', 'A²', 'A²', 'A²', 'A²', 'N', 'Y³'],

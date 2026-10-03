@@ -80,6 +80,10 @@ describe('policy matrix', () => {
   it('looks cells up strictly', () => {
     expect(policyCell('profiles', 'Sessions, settings, export, delete', 'owner')).toBe('Y');
     expect(() => policyCell('profiles', 'Nope', 'owner')).toThrow();
+    expect(() => policyCell('nope', 'Profile: edit', 'owner')).toThrow();
+    expect(() => policyCell('profiles', 'Profile: edit', 'nobody')).toThrow();
+    expect(cellDecision('N')).toBe('N');
+    expect(cellDecision('—')).toBe('—');
     expect(cellDecision('A¹⁰')).toBe('A');
     expect(cellDecision('Remove only')).toBe('other');
     expect(cellDecision('Y³')).toBe('Y');

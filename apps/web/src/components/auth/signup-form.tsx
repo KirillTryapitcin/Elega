@@ -1,6 +1,6 @@
 'use client';
 
-import { MIN_SIGNUP_AGE, PASSWORD_MIN_LENGTH } from '@elega/shared';
+import { MIN_SIGNUP_AGE, PASSWORD_MIN_LENGTH } from '@elega/shared/account-rules';
 import { Button, Input } from '@elega/ui';
 import { useLocale, useTranslations } from 'next-intl';
 import Link from 'next/link';

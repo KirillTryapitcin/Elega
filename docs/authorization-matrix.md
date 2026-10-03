@@ -27,7 +27,8 @@ Two modifiers apply on top of every cell:
 - **Minor owner** (owner under 18): anything that is `Y` for `fof`, `follower`, `stranger`
   or `anon` on profile, posts, friends list and search becomes `N`.
 - **Unverified viewer** (email not confirmed): no messages to non-friends, no public posts,
-  no friend requests to strangers.
+  no friend requests to strangers, no media uploads, no avatar or cover, no profile field edits
+  and no opting into indexing. Display name, username, locale and time zone stay editable.
 
 Legend: `Y` allowed · `N` denied · `A` depends on the item's audience or the owner's
 setting · `—` not applicable. `blocked` is `N` for every read and write, without exception;
@@ -40,6 +41,8 @@ the API returns `404`, not `403`, so a block is not revealed.
 | Profile: name, avatar, username | A¹ | Y | Y | Y | Y | Y | N | Y |
 | Profile: other fields | A² | Y | A² | A² | A² | A² | N | Y³ |
 | Profile: edit | N | Y | N | N | N | N | N | N |
+| Profile: photos (avatar history) | N | Y | A² | A² | A² | A² | N | Y³ |
+| Media: upload, status, delete own | N | Y | N | N | N | N | N | N |
 | Friends list | A² | Y | A² | A² | A² | A² | N | Y³ |
 | Send friend request | N | — | — | A⁴ | A⁴ | A⁴ | N | — |
 | Follow | N | — | Y | A⁵ | — | A⁵ | N | — |
@@ -48,8 +51,13 @@ the API returns `404`, not `403`, so a block is not revealed.
 | Block / mute | N | — | Y | Y | Y | Y | Y | — |
 | Sessions, settings, export, delete | N | Y | N | N | N | N | N | N |
 
-¹ Public profiles are visible to anonymous users only if the owner opted into indexing.
-² Per-field audience from `user_profiles.profile_visibility_json`.
+¹ Public profiles are visible to anonymous users only if the public-profiles flag is on, the
+owner is an adult, opted into indexing and holds a valid consent to dissemination (152-FZ
+Art. 10.1). Avatar bytes are served by short-lived signed URLs: a URL a viewer obtained earlier
+stays valid until it expires (at most `SIGNED_URL_TTL_SECONDS + SIGNED_URL_WINDOW_SECONDS`), even
+after a block or a withdrawn consent.
+² Per-field audience from `user_profiles.profile_visibility_json` (the `photos` key for the avatar
+history); anonymous visitors never see the avatar history.
 ³ Staff see full profiles in the admin view only, every view written to `audit_log`.
 ⁴ `who_can_send_friend_requests`. ⁵ `allow_followers`. ⁶ `who_can_message`; non-friends land
 in message requests. ⁷ `who_can_mention`.
