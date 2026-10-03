@@ -15,7 +15,7 @@ export interface paths {
     put?: never;
     /**
      * Register (invite code required until open beta)
-     * @description Creates the account, signs it in (refresh cookie set) and sends a verification email. Unverified accounts are read-only until the email is confirmed. Retries are safe without an Idempotency-Key because email and username are unique (409 on repeat).
+     * @description Creates the account, signs it in (refresh cookie set) and sends a verification email. Until the email is confirmed the account has limited access (see the API description). Retries are safe without an Idempotency-Key because email and username are unique (409 on repeat).
      */
     post: operations['postAuthRegister'];
     delete?: never;
@@ -424,7 +424,10 @@ export interface paths {
     delete?: never;
     options?: never;
     head?: never;
-    /** Update profile and account fields */
+    /**
+     * Update profile and account fields
+     * @description Only the properties sent change. Editing `profile` needs a verified email (403 email_not_verified). Text is trimmed and Unicode-normalised; control and direction-override characters return 400 text_invalid. URLs get https:// when no scheme is given (http and https only) and are rejected with 400 url_invalid or url_blocked. `custom_list` audiences return 400 audience_not_available; minors may only use friends and only_me (403 not_allowed_for_minors). When the profile is open to everyone (see Me.anonVisible) and the change makes a field public that the current consent to dissemination of personal data (152-FZ art. 10.1) does not cover, the call fails with 400 validation_failed and one detail per such field: `{ field: "profile.fieldAudience.<field>", message: "consent_required" }`. Repeat it with `acceptedPdDisseminationVersion` set to PublicConfig.legalVersions.pdDissemination to record a new consent that covers them.
+     */
     patch: operations['patchMe'];
     trace?: never;
   };
@@ -442,7 +445,10 @@ export interface paths {
     delete?: never;
     options?: never;
     head?: never;
-    /** Update settings */
+    /**
+     * Update settings
+     * @description Only the properties sent change. Turning `searchEngineIndexing` on makes the profile open to everyone (anonymous visitors and search engines) and needs the public-profiles feature (403 public_profiles_unavailable), an adult account (403 not_allowed_for_minors), a verified email (403 email_not_verified) and consent to dissemination of personal data (152-FZ art. 10.1): either `acceptedPdDisseminationVersion` equal to PublicConfig.legalVersions.pdDissemination in the same request or a valid consent already on record, otherwise 400 consent_required. Turning it off withdraws the consent.
+     */
     patch: operations['patchMeSettings'];
     trace?: never;
   };
@@ -453,7 +459,10 @@ export interface paths {
       path?: never;
       cookie?: never;
     };
-    /** Profile as seen by the viewer */
+    /**
+     * Profile as seen by the viewer
+     * @description Looks the user up by id, by username (case-insensitive) or by a previous username for 30 days after a change; the response carries canonicalUsername so the client can redirect to the current one. Without a bearer the caller is anonymous and sees the profile only when it is open to everyone (ProfileView.indexable). Unknown users, hidden profiles (block, minor owner, inactive account, not open to anonymous callers) and expired old usernames all return the same 404. A bearer that is present but invalid, expired or revoked returns 401 instead of the anonymous view, so the client can refresh and retry. Responses carry Cache-Control: no-store and Vary: Authorization.
+     */
     get: operations['getUsersUsernameOrId'];
     put?: never;
     post?: never;
@@ -504,7 +513,10 @@ export interface paths {
       path?: never;
       cookie?: never;
     };
-    /** Photos tab */
+    /**
+     * Photos tab
+     * @description Avatar history: the last 10 avatars the user has set, newest first (the current one included). Visible when the viewer can see the profile header and the `photos` field audience allows the viewer, otherwise 404. Images waiting for moderation review are shown to the owner only. A single page: the cursor is validated but ignored, nextCursor is null and hasMore is false.
+     */
     get: operations['getUsersIdPhotos'];
     put?: never;
     post?: never;
@@ -523,9 +535,16 @@ export interface paths {
     };
     get?: never;
     put?: never;
-    /** Set avatar from an uploaded image */
+    /**
+     * Set avatar from an uploaded image
+     * @description Needs a verified email (403 email_not_verified). The media must be the caller's own image uploaded with purpose avatar: unknown, foreign, deleted or other-purpose media returns 404; media still pending or processing returns 409 media_not_ready; rejected media returns 400 media_rejected. The previous avatar stays in the avatar history.
+     */
     post: operations['postMeAvatar'];
-    delete?: never;
+    /**
+     * Remove avatar
+     * @description Clears the avatar. The image stays in the avatar history; delete it with DELETE /media/{id}. Succeeds when there is no avatar.
+     */
+    delete: operations['deleteMeAvatar'];
     options?: never;
     head?: never;
     patch?: never;
@@ -540,9 +559,16 @@ export interface paths {
     };
     get?: never;
     put?: never;
-    /** Set cover from an uploaded image */
+    /**
+     * Set cover from an uploaded image
+     * @description Needs a verified email (403 email_not_verified). The media must be the caller's own image uploaded with purpose cover: unknown, foreign, deleted or other-purpose media returns 404; media still pending or processing returns 409 media_not_ready; rejected media returns 400 media_rejected. The previous cover is deleted.
+     */
     post: operations['postMeCover'];
-    delete?: never;
+    /**
+     * Remove cover
+     * @description Clears the cover and deletes the image. Succeeds when there is no cover.
+     */
+    delete: operations['deleteMeCover'];
     options?: never;
     head?: never;
     patch?: never;
@@ -1368,7 +1394,10 @@ export interface paths {
     };
     get?: never;
     put?: never;
-    /** Request presigned upload slot */
+    /**
+     * Request presigned upload slot
+     * @description Images only for now: kind image, purpose avatar or cover, mimeType image/jpeg (the web client crops and re-encodes every picture to JPEG). Needs a verified email (403 email_not_verified). Checks, in order: uploads paused (403 media_uploads_paused); other kinds or MIME types (415); other purposes (400 media_purpose_not_available); sizeBytes over the purpose limit (413); too many unfinished uploads (409 media_too_many_pending); storage quota (403 media_quota_exceeded). PUT the bytes to uploadUrl with exactly the returned headers before expiresAt (the content type and length are signed), then call POST /media/{id}/complete. With an Idempotency-Key, a retry with the same body returns the same slot (201) until it expires; the same key with a different body returns 409 idempotency_key_reused.
+     */
     post: operations['postMediaUploads'];
     delete?: never;
     options?: never;
@@ -1385,7 +1414,10 @@ export interface paths {
     };
     get?: never;
     put?: never;
-    /** Mark upload complete, start processing */
+    /**
+     * Mark upload complete, start processing
+     * @description Owner only (others get 404). Uploads paused returns 403 media_uploads_paused. For pending media the uploaded object is checked: not there yet returns 409 media_upload_missing; a size other than the declared sizeBytes, or a slot that expired without an upload, makes the media rejected. Otherwise the media moves to processing. Media in any other status is returned unchanged, so retries are safe. Poll GET /media/{id} until the status is ready or rejected.
+     */
     post: operations['postMediaIdComplete'];
     delete?: never;
     options?: never;
@@ -1400,11 +1432,17 @@ export interface paths {
       path?: never;
       cookie?: never;
     };
-    /** Media status and variants */
+    /**
+     * Media status and variants
+     * @description Owner only (others get 404). Variants are present once the status is ready; rejectionReason is set when it is rejected.
+     */
     get: operations['getMediaId'];
     put?: never;
     post?: never;
-    /** Delete unattached media */
+    /**
+     * Delete own media
+     * @description Owner only (others get 404). Deletes the media and its files, in any status. If it is the current avatar or cover it disappears from the profile as well, and an avatar leaves the avatar history.
+     */
     delete: operations['deleteMediaId'];
     options?: never;
     head?: never;
@@ -2445,7 +2483,10 @@ export interface paths {
       path?: never;
       cookie?: never;
     };
-    /** Readiness (DB, Redis) */
+    /**
+     * Readiness (DB, Redis, object storage)
+     * @description A database or Redis failure returns 503 with status down. An object storage failure returns 200 with status degraded, because everything except media keeps working.
+     */
     get: operations['getReadyz'];
     put?: never;
     post?: never;
@@ -2658,22 +2699,100 @@ export interface components {
       twoFactorEnabled?: boolean;
       hasPassword?: boolean;
       profile?: components['schemas']['Profile'];
+      /** @description Same as Settings.dataSaver, so pages can pick image sizes without another request. */
+      dataSaver: boolean;
+      /** @description The owner closed the profile completeness hint. */
+      profileHintDismissed: boolean;
+      /** @description The owner finished or skipped onboarding. */
+      onboardingDone: boolean;
+      /** @description The profile is open to everyone, anonymous visitors and search engines included: the public-profiles feature is on, the account is adult and active, searchEngineIndexing is on and the consent to dissemination of personal data (152-FZ art. 10.1) is valid for the current PublicConfig.legalVersions.pdDissemination. */
+      anonVisible: boolean;
     };
+    /**
+     * @description Who may see a profile field. public: every member, and anonymous visitors too while the profile is open to everyone (Me.anonVisible). custom_list is reserved for friend lists and not accepted yet (400 audience_not_available). Minors may only use friends and only_me.
+     * @enum {string}
+     */
+    FieldAudience: 'public' | 'friends' | 'friends_of_friends' | 'only_me' | 'custom_list';
+    /** @description Effective audience of every profile field, defaults applied (friends, birthYear only_me). */
+    ProfileFieldAudiences: {
+      cover: components['schemas']['FieldAudience'];
+      bio: components['schemas']['FieldAudience'];
+      city: components['schemas']['FieldAudience'];
+      country: components['schemas']['FieldAudience'];
+      workplace: components['schemas']['FieldAudience'];
+      education: components['schemas']['FieldAudience'];
+      website: components['schemas']['FieldAudience'];
+      links: components['schemas']['FieldAudience'];
+      pronouns: components['schemas']['FieldAudience'];
+      relationshipStatus: components['schemas']['FieldAudience'];
+      birthday: components['schemas']['FieldAudience'];
+      birthYear: components['schemas']['FieldAudience'];
+      photos: components['schemas']['FieldAudience'];
+    };
+    /** @description Only the fields sent change. */
+    ProfileFieldAudiencesUpdate: {
+      cover?: components['schemas']['FieldAudience'];
+      bio?: components['schemas']['FieldAudience'];
+      city?: components['schemas']['FieldAudience'];
+      country?: components['schemas']['FieldAudience'];
+      workplace?: components['schemas']['FieldAudience'];
+      education?: components['schemas']['FieldAudience'];
+      website?: components['schemas']['FieldAudience'];
+      links?: components['schemas']['FieldAudience'];
+      pronouns?: components['schemas']['FieldAudience'];
+      relationshipStatus?: components['schemas']['FieldAudience'];
+      birthday?: components['schemas']['FieldAudience'];
+      birthYear?: components['schemas']['FieldAudience'];
+      photos?: components['schemas']['FieldAudience'];
+    };
+    /** @enum {string} */
+    RelationshipStatus:
+      'single' | 'in_relationship' | 'engaged' | 'married' | 'complicated' | 'searching';
+    ProfileLink: {
+      /**
+       * Format: uri
+       * @description Normalised http or https URL
+       */
+      url: string;
+      /** @description Host to display. Unicode when it uses one script (Latin or Cyrillic), punycode otherwise. */
+      host: string;
+    };
+    /** @description Fields the viewer may not see are omitted, never sent as null. Text is plain text. */
     Profile: {
       bio?: string | null;
       city?: string | null;
+      /** @description ISO 3166-1 alpha-2 code */
+      country?: string | null;
       workplace?: string | null;
       education?: string | null;
-      website?: string | null;
-      birthday?: string | null;
+      website?: components['schemas']['ProfileLink'] | null;
+      links?: components['schemas']['ProfileLink'][];
       pronouns?: string | null;
-      relationshipStatus?: string | null;
-      links?: string[];
+      relationshipStatus?: components['schemas']['RelationshipStatus'] | null;
+      /** @description Day and month of birth as MM-DD; the year is birthYear. Read-only. */
+      birthday?: string;
+      /** @description Year of birth. Read-only. */
+      birthYear?: number;
       avatar?: components['schemas']['MediaVariants'] | null;
       cover?: components['schemas']['MediaVariants'] | null;
-      fieldAudience?: {
-        [key: string]: 'public' | 'friends' | 'friends_of_friends' | 'only_me' | 'custom_list';
-      };
+      /** @description Sent to the owner only. */
+      fieldAudience?: components['schemas']['ProfileFieldAudiences'];
+    };
+    /** @description Every property is optional and null clears the field (an empty string does too). Birthday comes from the account date of birth; avatar and cover have their own endpoints. */
+    ProfileUpdate: {
+      bio?: string | null;
+      city?: string | null;
+      /** @description ISO 3166-1 alpha-2 code */
+      country?: string | null;
+      workplace?: string | null;
+      education?: string | null;
+      /** @description http or https URL; https:// is added when the scheme is missing. */
+      website?: string | null;
+      /** @description Same rules as website; duplicates are removed. */
+      links?: string[] | null;
+      pronouns?: string | null;
+      relationshipStatus?: components['schemas']['RelationshipStatus'] | null;
+      fieldAudience?: components['schemas']['ProfileFieldAudiencesUpdate'];
     };
     /** @description Fields the viewer may not see are omitted, never sent as null. */
     ProfileView: {
@@ -2683,14 +2802,20 @@ export interface components {
       /** @enum {string} */
       relationship: 'self' | 'friend' | 'request_sent' | 'request_received' | 'following' | 'none';
       pinnedPostId?: string | null;
+      /** @description The profile is open to everyone (the Me.anonVisible rule), so search engines may index it. */
+      indexable: boolean;
+      /** @description The current username. Redirect to it when the request used an id or an old username. */
+      canonicalUsername: string;
     };
     MeUpdate: {
       displayName?: string;
       username?: string;
-      profile?: components['schemas']['Profile'];
+      profile?: components['schemas']['ProfileUpdate'];
       /** @enum {string} */
       locale?: 'ru' | 'en';
       timezone?: string;
+      /** @description Consent to dissemination of personal data (152-FZ art. 10.1) covering the fields this request makes public. Must equal PublicConfig.legalVersions.pdDissemination. */
+      acceptedPdDisseminationVersion?: string;
     };
     Settings: {
       /** @enum {string} */
@@ -2710,9 +2835,40 @@ export interface components {
       readReceiptsEnabled?: boolean;
       /** @enum {string} */
       defaultPostAudience?: 'public' | 'friends' | 'close_friends' | 'only_me';
+      /** @description Open the profile to everyone, anonymous visitors and search engines included (see PATCH /me/settings for the conditions). */
       searchEngineIndexing?: boolean;
       discoverableByEmail?: boolean;
       dataSaver?: boolean;
+      profileHintDismissed?: boolean;
+      onboardingDone?: boolean;
+    };
+    /** @description Settings plus the consent version. Only the properties sent change. */
+    SettingsUpdate: {
+      /** @enum {string} */
+      theme?: 'light' | 'dark' | 'system';
+      fontScale?: number;
+      /** @enum {string} */
+      feedMode?: 'chronological' | 'for_you';
+      /** @enum {string} */
+      whoCanMessage?: 'everyone' | 'friends' | 'nobody';
+      /** @enum {string} */
+      whoCanSendFriendRequests?: 'everyone' | 'friends_of_friends' | 'nobody';
+      /** @enum {string} */
+      whoCanSeeOnlineStatus?: 'everyone' | 'friends' | 'nobody';
+      /** @enum {string} */
+      whoCanMention?: 'everyone' | 'friends' | 'nobody';
+      allowFollowers?: boolean;
+      readReceiptsEnabled?: boolean;
+      /** @enum {string} */
+      defaultPostAudience?: 'public' | 'friends' | 'close_friends' | 'only_me';
+      /** @description Open the profile to everyone, anonymous visitors and search engines included (see PATCH /me/settings for the conditions). */
+      searchEngineIndexing?: boolean;
+      discoverableByEmail?: boolean;
+      dataSaver?: boolean;
+      profileHintDismissed?: boolean;
+      onboardingDone?: boolean;
+      /** @description Consent to dissemination of personal data (152-FZ art. 10.1), needed to turn searchEngineIndexing on without a valid consent on record. Must equal PublicConfig.legalVersions.pdDissemination. */
+      acceptedPdDisseminationVersion?: string;
     };
     ExportJob: {
       /** Format: uuid */
@@ -2779,31 +2935,47 @@ export interface components {
       reason: string;
     };
     MediaVariants: {
-      blurhash?: string | null;
-      width?: number;
-      height?: number;
-      srcset?: {
+      blurhash: string | null;
+      width: number;
+      height: number;
+      /** @description One entry per width and format. URLs are signed and expire; fetch the owning resource again for fresh ones. */
+      srcset: {
         /** Format: uri */
-        url?: string;
-        width?: number;
+        url: string;
+        width: number;
         /** @enum {string} */
-        format?: 'avif' | 'webp' | 'jpeg';
+        format: 'avif' | 'webp' | 'jpeg';
       }[];
     };
+    /** @enum {string} */
+    MediaPurpose: 'post' | 'comment' | 'avatar' | 'cover' | 'story' | 'message' | 'group' | 'page';
+    /** @enum {string} */
+    MediaRejectionReason:
+      | 'too_large'
+      | 'unsupported_type'
+      | 'dimensions'
+      | 'aspect_ratio'
+      | 'corrupt'
+      | 'malware'
+      | 'policy'
+      | 'expired'
+      | 'failed';
     UploadRequest: {
       /** @enum {string} */
       kind: 'image' | 'video' | 'audio' | 'file';
       mimeType: string;
       sizeBytes: number;
-      /** @enum {string} */
-      purpose: 'post' | 'comment' | 'avatar' | 'cover' | 'story' | 'message' | 'group' | 'page';
+      purpose: components['schemas']['MediaPurpose'];
     };
     UploadSlot: {
       /** Format: uuid */
       mediaId: string;
       /** Format: uri */
       uploadUrl: string;
-      headers?: {
+      /** @enum {string} */
+      method: 'PUT';
+      /** @description Send exactly these headers with the upload; they are part of the signature. */
+      headers: {
         [key: string]: string;
       };
       /** Format: date-time */
@@ -2814,21 +2986,21 @@ export interface components {
       id: string;
       /** @enum {string} */
       kind: 'image' | 'video' | 'audio' | 'file';
+      purpose: components['schemas']['MediaPurpose'];
       /** @enum {string} */
       status: 'pending' | 'processing' | 'ready' | 'rejected';
+      /** @description Set when the status is rejected, null otherwise. */
+      rejectionReason: components['schemas']['MediaRejectionReason'] | null;
       variants?: components['schemas']['MediaVariants'] | null;
       hlsUrl?: string | null;
       durationMs?: number | null;
+      /** Format: date-time */
+      createdAt: string;
     };
+    /** @description The image is cropped on the client before upload; the server never crops. */
     SetMediaRequest: {
       /** Format: uuid */
       mediaId: string;
-      crop?: {
-        x?: number;
-        y?: number;
-        width?: number;
-        height?: number;
-      };
     };
     LinkPreviewRequest: {
       /** Format: uri */
@@ -3476,8 +3648,13 @@ export interface components {
         terms: string;
         privacy: string;
         pdProcessing: string;
+        /** @description Consent to dissemination of personal data (152-FZ art. 10.1), needed to open the profile to everyone */
+        pdDissemination: string;
       };
-      limits?: Record<string, never>;
+      features: {
+        /** @description Profiles can be opened to everyone (anonymous visitors and search engines). When false, searchEngineIndexing cannot be turned on. */
+        publicProfiles: boolean;
+      };
     };
   };
   responses: {
@@ -3526,6 +3703,24 @@ export interface components {
         'application/json': components['schemas']['Error'];
       };
     };
+    /** @description Request body or declared upload size is over the limit */
+    PayloadTooLarge: {
+      headers: {
+        [name: string]: unknown;
+      };
+      content: {
+        'application/json': components['schemas']['Error'];
+      };
+    };
+    /** @description Media kind or type is not accepted */
+    UnsupportedMediaType: {
+      headers: {
+        [name: string]: unknown;
+      };
+      content: {
+        'application/json': components['schemas']['Error'];
+      };
+    };
     /** @description Too many requests */
     RateLimited: {
       headers: {
@@ -3541,7 +3736,7 @@ export interface components {
     Limit: number;
     /** @description Opaque, HMAC-signed */
     Cursor: string;
-    /** @description Retries with the same key and body return the original response for 24 h */
+    /** @description Retries with the same key and body return the original response for 24 h; the same key with a different body returns 409 (idempotency_key_reused). A malformed key returns 400. */
     IdempotencyKey: string;
     CsrfHeader: '1';
   };
@@ -4237,7 +4432,7 @@ export interface operations {
     };
     requestBody: {
       content: {
-        'application/json': components['schemas']['Settings'];
+        'application/json': components['schemas']['SettingsUpdate'];
       };
     };
     responses: {
@@ -4261,6 +4456,7 @@ export interface operations {
       query?: never;
       header?: never;
       path: {
+        /** @description User id (UUID), username or a previous username */
         usernameOrId: string;
       };
       cookie?: never;
@@ -4276,6 +4472,7 @@ export interface operations {
           'application/json': components['schemas']['ProfileView'];
         };
       };
+      401: components['responses']['Unauthorized'];
       403: components['responses']['Forbidden'];
       404: components['responses']['NotFound'];
       429: components['responses']['RateLimited'];
@@ -4407,6 +4604,31 @@ export interface operations {
       400: components['responses']['ValidationFailed'];
       401: components['responses']['Unauthorized'];
       403: components['responses']['Forbidden'];
+      404: components['responses']['NotFound'];
+      409: components['responses']['Conflict'];
+      429: components['responses']['RateLimited'];
+    };
+  };
+  deleteMeAvatar: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description OK */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['Me'];
+        };
+      };
+      401: components['responses']['Unauthorized'];
+      403: components['responses']['Forbidden'];
       429: components['responses']['RateLimited'];
     };
   };
@@ -4435,6 +4657,31 @@ export interface operations {
       400: components['responses']['ValidationFailed'];
       401: components['responses']['Unauthorized'];
       403: components['responses']['Forbidden'];
+      404: components['responses']['NotFound'];
+      409: components['responses']['Conflict'];
+      429: components['responses']['RateLimited'];
+    };
+  };
+  deleteMeCover: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description OK */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['Me'];
+        };
+      };
+      401: components['responses']['Unauthorized'];
+      403: components['responses']['Forbidden'];
       429: components['responses']['RateLimited'];
     };
   };
@@ -4442,7 +4689,7 @@ export interface operations {
     parameters: {
       query?: never;
       header?: {
-        /** @description Retries with the same key and body return the original response for 24 h */
+        /** @description Retries with the same key and body return the original response for 24 h; the same key with a different body returns 409 (idempotency_key_reused). A malformed key returns 400. */
         'Idempotency-Key'?: components['parameters']['IdempotencyKey'];
       };
       path?: never;
@@ -4543,7 +4790,7 @@ export interface operations {
     parameters: {
       query?: never;
       header?: {
-        /** @description Retries with the same key and body return the original response for 24 h */
+        /** @description Retries with the same key and body return the original response for 24 h; the same key with a different body returns 409 (idempotency_key_reused). A malformed key returns 400. */
         'Idempotency-Key'?: components['parameters']['IdempotencyKey'];
       };
       path?: never;
@@ -5144,7 +5391,7 @@ export interface operations {
     parameters: {
       query?: never;
       header?: {
-        /** @description Retries with the same key and body return the original response for 24 h */
+        /** @description Retries with the same key and body return the original response for 24 h; the same key with a different body returns 409 (idempotency_key_reused). A malformed key returns 400. */
         'Idempotency-Key'?: components['parameters']['IdempotencyKey'];
       };
       path?: never;
@@ -5413,7 +5660,7 @@ export interface operations {
     parameters: {
       query?: never;
       header?: {
-        /** @description Retries with the same key and body return the original response for 24 h */
+        /** @description Retries with the same key and body return the original response for 24 h; the same key with a different body returns 409 (idempotency_key_reused). A malformed key returns 400. */
         'Idempotency-Key'?: components['parameters']['IdempotencyKey'];
       };
       path: {
@@ -5447,7 +5694,7 @@ export interface operations {
     parameters: {
       query?: never;
       header?: {
-        /** @description Retries with the same key and body return the original response for 24 h */
+        /** @description Retries with the same key and body return the original response for 24 h; the same key with a different body returns 409 (idempotency_key_reused). A malformed key returns 400. */
         'Idempotency-Key'?: components['parameters']['IdempotencyKey'];
       };
       path: {
@@ -5913,7 +6160,7 @@ export interface operations {
     parameters: {
       query?: never;
       header?: {
-        /** @description Retries with the same key and body return the original response for 24 h */
+        /** @description Retries with the same key and body return the original response for 24 h; the same key with a different body returns 409 (idempotency_key_reused). A malformed key returns 400. */
         'Idempotency-Key'?: components['parameters']['IdempotencyKey'];
       };
       path?: never;
@@ -6120,7 +6367,7 @@ export interface operations {
     parameters: {
       query?: never;
       header?: {
-        /** @description Retries with the same key and body return the original response for 24 h */
+        /** @description Retries with the same key and body return the original response for 24 h; the same key with a different body returns 409 (idempotency_key_reused). A malformed key returns 400. */
         'Idempotency-Key'?: components['parameters']['IdempotencyKey'];
       };
       path?: never;
@@ -6144,6 +6391,9 @@ export interface operations {
       400: components['responses']['ValidationFailed'];
       401: components['responses']['Unauthorized'];
       403: components['responses']['Forbidden'];
+      409: components['responses']['Conflict'];
+      413: components['responses']['PayloadTooLarge'];
+      415: components['responses']['UnsupportedMediaType'];
       429: components['responses']['RateLimited'];
     };
   };
@@ -6170,6 +6420,7 @@ export interface operations {
       401: components['responses']['Unauthorized'];
       403: components['responses']['Forbidden'];
       404: components['responses']['NotFound'];
+      409: components['responses']['Conflict'];
       429: components['responses']['RateLimited'];
     };
   };
@@ -6286,7 +6537,7 @@ export interface operations {
     parameters: {
       query?: never;
       header?: {
-        /** @description Retries with the same key and body return the original response for 24 h */
+        /** @description Retries with the same key and body return the original response for 24 h; the same key with a different body returns 409 (idempotency_key_reused). A malformed key returns 400. */
         'Idempotency-Key'?: components['parameters']['IdempotencyKey'];
       };
       path?: never;
@@ -6902,7 +7153,7 @@ export interface operations {
     parameters: {
       query?: never;
       header?: {
-        /** @description Retries with the same key and body return the original response for 24 h */
+        /** @description Retries with the same key and body return the original response for 24 h; the same key with a different body returns 409 (idempotency_key_reused). A malformed key returns 400. */
         'Idempotency-Key'?: components['parameters']['IdempotencyKey'];
       };
       path?: never;
@@ -7349,7 +7600,7 @@ export interface operations {
     parameters: {
       query?: never;
       header?: {
-        /** @description Retries with the same key and body return the original response for 24 h */
+        /** @description Retries with the same key and body return the original response for 24 h; the same key with a different body returns 409 (idempotency_key_reused). A malformed key returns 400. */
         'Idempotency-Key'?: components['parameters']['IdempotencyKey'];
       };
       path?: never;
@@ -7655,7 +7906,7 @@ export interface operations {
     parameters: {
       query?: never;
       header?: {
-        /** @description Retries with the same key and body return the original response for 24 h */
+        /** @description Retries with the same key and body return the original response for 24 h; the same key with a different body returns 409 (idempotency_key_reused). A malformed key returns 400. */
         'Idempotency-Key'?: components['parameters']['IdempotencyKey'];
       };
       path?: never;
@@ -7965,7 +8216,7 @@ export interface operations {
     parameters: {
       query?: never;
       header?: {
-        /** @description Retries with the same key and body return the original response for 24 h */
+        /** @description Retries with the same key and body return the original response for 24 h; the same key with a different body returns 409 (idempotency_key_reused). A malformed key returns 400. */
         'Idempotency-Key'?: components['parameters']['IdempotencyKey'];
       };
       path?: never;

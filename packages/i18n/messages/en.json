@@ -197,7 +197,21 @@
       "not_allowed_for_minors": "This setting isn't available until you are 18.",
       "display_name_invalid": "The name contains characters that are not allowed.",
       "profile_editing_not_available": "Profile editing is coming later.",
-      "timezone_invalid": "Unknown time zone."
+      "timezone_invalid": "Unknown time zone.",
+      "email_not_verified": "Confirm your email first using the link we sent you.",
+      "media_purpose_not_available": "Photos can't be uploaded here yet.",
+      "media_too_many_pending": "Too many uploads in progress. Wait for them to finish and try again.",
+      "media_quota_exceeded": "You've run out of space for photos. Delete some and try again.",
+      "media_uploads_paused": "Photo uploads are paused for now. Try again later.",
+      "media_upload_missing": "The file didn't reach the server. Upload it again.",
+      "media_not_ready": "The photo is still processing. Wait a moment.",
+      "media_rejected": "This photo can't be used. Choose another one.",
+      "audience_not_available": "This option isn't available yet.",
+      "public_profiles_unavailable": "Profiles can't be opened to everyone yet.",
+      "idempotency_key_reused": "This request doesn't match the one sent earlier. Reload the page and try again.",
+      "url_invalid": "Check the link. Enter a website address such as example.com.",
+      "url_blocked": "Links to this site aren't allowed.",
+      "text_invalid": "The text contains characters that aren't allowed."
     },
     "oauthErrors": {
       "invalid_state": "Sign-in was interrupted. Try again.",
@@ -306,6 +320,19 @@
         "chronological": "Latest first",
         "for_you": "Recommended"
       }
+    }
+  },
+  "media": {
+    "rejected": {
+      "too_large": "The file is too large. Choose a smaller photo.",
+      "unsupported_type": "This file format isn't supported. Choose another photo.",
+      "dimensions": "The resolution is too high. Choose another photo.",
+      "aspect_ratio": "The proportions don't fit. Crop the photo and try again.",
+      "corrupt": "The file is damaged or didn't upload completely. Try again.",
+      "malware": "The file didn't pass the security check.",
+      "policy": "This photo breaks the community rules.",
+      "expired": "The upload didn't finish in time. Try again.",
+      "failed": "Couldn't process the photo. Try again."
     }
   },
   "legal": {

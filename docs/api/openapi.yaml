@@ -6,7 +6,10 @@ info:
     from it, and an API integration test fails if the server exposes a route not described here. Endpoints are
     implemented milestone by milestone; see docs/progress.md. Conventions: JSON, UTF-8, ISO 8601 UTC timestamps; cursor pagination `{ data, page:
     { nextCursor, hasMore } }` (limit default 20, max 50); unified error format; `Idempotency-Key` on creation endpoints;
-    RateLimit-* headers on every response. Realtime events are specified in docs/api/realtime-events.md.'
+    RateLimit-* headers on every response. Realtime events are specified in docs/api/realtime-events.md.
+    Unverified accounts (email not confirmed yet) can sign in, read, and edit their display name, username, locale
+    and timezone. They cannot upload media, set an avatar or cover, edit profile fields or make the profile public;
+    those calls return 403 `forbidden` with the detail `email_not_verified`.'
 servers:
 - url: https://elega.ru/api/v1
   description: Production
@@ -40,7 +43,8 @@ paths:
       - auth
       summary: Register (invite code required until open beta)
       description: Creates the account, signs it in (refresh cookie set) and sends a verification
-        email. Unverified accounts are read-only until the email is confirmed. Retries are safe
+        email. Until the email is confirmed the account has limited access (see the API
+        description). Retries are safe
         without an Idempotency-Key because email and username are unique (409 on repeat).
       security: []
       requestBody:
@@ -667,6 +671,17 @@ paths:
       tags:
       - users
       summary: Update profile and account fields
+      description: 'Only the properties sent change. Editing `profile` needs a verified email (403
+        email_not_verified). Text is trimmed and Unicode-normalised; control and direction-override
+        characters return 400 text_invalid. URLs get https:// when no scheme is given (http and https
+        only) and are rejected with 400 url_invalid or url_blocked. `custom_list` audiences return 400
+        audience_not_available; minors may only use friends and only_me (403 not_allowed_for_minors).
+        When the profile is open to everyone (see Me.anonVisible) and the change makes a field public
+        that the current consent to dissemination of personal data (152-FZ art. 10.1) does not cover,
+        the call fails with 400 validation_failed and one detail per such field: `{ field:
+        "profile.fieldAudience.<field>", message: "consent_required" }`. Repeat it with
+        `acceptedPdDisseminationVersion` set to PublicConfig.legalVersions.pdDissemination to record a
+        new consent that covers them.'
       requestBody:
         required: true
         content:
@@ -712,12 +727,19 @@ paths:
       tags:
       - users
       summary: Update settings
+      description: 'Only the properties sent change. Turning `searchEngineIndexing` on makes the
+        profile open to everyone (anonymous visitors and search engines) and needs the public-profiles
+        feature (403 public_profiles_unavailable), an adult account (403 not_allowed_for_minors), a
+        verified email (403 email_not_verified) and consent to dissemination of personal data
+        (152-FZ art. 10.1): either `acceptedPdDisseminationVersion` equal to
+        PublicConfig.legalVersions.pdDissemination in the same request or a valid consent already on
+        record, otherwise 400 consent_required. Turning it off withdraws the consent.'
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/Settings'
+              $ref: '#/components/schemas/SettingsUpdate'
       responses:
         '200':
           description: OK
@@ -739,13 +761,23 @@ paths:
       tags:
       - users
       summary: Profile as seen by the viewer
+      description: 'Looks the user up by id, by username (case-insensitive) or by a previous username
+        for 30 days after a change; the response carries canonicalUsername so the client can redirect
+        to the current one. Without a bearer the caller is anonymous and sees the profile only when it
+        is open to everyone (ProfileView.indexable). Unknown users, hidden profiles (block, minor
+        owner, inactive account, not open to anonymous callers) and expired old usernames all return
+        the same 404. A bearer that is
+        present but invalid, expired or revoked returns 401 instead of the anonymous view, so the
+        client can refresh and retry. Responses carry Cache-Control: no-store and Vary: Authorization.'
       parameters:
       - name: usernameOrId
         in: path
         required: true
+        description: User id (UUID), username or a previous username
         schema:
           type: string
-          format: uuid
+          minLength: 1
+          maxLength: 36
       security:
       - {}
       - bearer: []
@@ -756,6 +788,8 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ProfileView'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
         '403':
           $ref: '#/components/responses/Forbidden'
         '404':
@@ -855,6 +889,11 @@ paths:
       tags:
       - users
       summary: Photos tab
+      description: 'Avatar history: the last 10 avatars the user has set, newest first (the current
+        one included). Visible when the viewer can see the profile header and the `photos` field
+        audience allows the viewer, otherwise 404. Images waiting for moderation review are shown to
+        the owner only. A single page: the cursor is validated but ignored, nextCursor is null and
+        hasMore is false.'
       parameters:
       - name: id
         in: path
@@ -898,6 +937,10 @@ paths:
       tags:
       - users
       summary: Set avatar from an uploaded image
+      description: 'Needs a verified email (403 email_not_verified). The media must be the caller''s
+        own image uploaded with purpose avatar: unknown, foreign, deleted or other-purpose media
+        returns 404; media still pending or processing returns 409 media_not_ready; rejected media
+        returns 400 media_rejected. The previous avatar stays in the avatar history.'
       requestBody:
         required: true
         content:
@@ -917,6 +960,30 @@ paths:
           $ref: '#/components/responses/Unauthorized'
         '403':
           $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+    delete:
+      operationId: deleteMeAvatar
+      tags:
+      - users
+      summary: Remove avatar
+      description: Clears the avatar. The image stays in the avatar history; delete it with
+        DELETE /media/{id}. Succeeds when there is no avatar.
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Me'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
         '429':
           $ref: '#/components/responses/RateLimited'
   /me/cover:
@@ -925,6 +992,10 @@ paths:
       tags:
       - users
       summary: Set cover from an uploaded image
+      description: 'Needs a verified email (403 email_not_verified). The media must be the caller''s
+        own image uploaded with purpose cover: unknown, foreign, deleted or other-purpose media
+        returns 404; media still pending or processing returns 409 media_not_ready; rejected media
+        returns 400 media_rejected. The previous cover is deleted.'
       requestBody:
         required: true
         content:
@@ -940,6 +1011,29 @@ paths:
                 $ref: '#/components/schemas/Me'
         '400':
           $ref: '#/components/responses/ValidationFailed'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+    delete:
+      operationId: deleteMeCover
+      tags:
+      - users
+      summary: Remove cover
+      description: Clears the cover and deletes the image. Succeeds when there is no cover.
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Me'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
@@ -2762,6 +2856,16 @@ paths:
       tags:
       - media
       summary: Request presigned upload slot
+      description: 'Images only for now: kind image, purpose avatar or cover, mimeType image/jpeg (the
+        web client crops and re-encodes every picture to JPEG). Needs a verified email (403
+        email_not_verified). Checks, in order: uploads paused (403 media_uploads_paused); other
+        kinds or MIME types (415); other purposes (400 media_purpose_not_available); sizeBytes over
+        the purpose limit (413); too many unfinished uploads (409 media_too_many_pending); storage
+        quota (403 media_quota_exceeded). PUT the bytes to uploadUrl with exactly the returned
+        headers before expiresAt (the content type and length are signed), then call
+        POST /media/{id}/complete. With an Idempotency-Key, a retry with the same body returns the
+        same slot (201) until it expires; the same key with a different body returns 409
+        idempotency_key_reused.'
       parameters:
       - $ref: '#/components/parameters/IdempotencyKey'
       requestBody:
@@ -2783,6 +2887,12 @@ paths:
           $ref: '#/components/responses/Unauthorized'
         '403':
           $ref: '#/components/responses/Forbidden'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '413':
+          $ref: '#/components/responses/PayloadTooLarge'
+        '415':
+          $ref: '#/components/responses/UnsupportedMediaType'
         '429':
           $ref: '#/components/responses/RateLimited'
   /media/{id}/complete:
@@ -2791,6 +2901,11 @@ paths:
       tags:
       - media
       summary: Mark upload complete, start processing
+      description: 'Owner only (others get 404). Uploads paused returns 403 media_uploads_paused. For
+        pending media the uploaded object is checked: not there yet returns 409 media_upload_missing;
+        a size other than the declared sizeBytes, or a slot that expired without an upload, makes the
+        media rejected. Otherwise the media moves to processing. Media in any other status is returned
+        unchanged, so retries are safe. Poll GET /media/{id} until the status is ready or rejected.'
       parameters:
       - name: id
         in: path
@@ -2811,6 +2926,8 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
         '429':
           $ref: '#/components/responses/RateLimited'
   /media/{id}:
@@ -2819,6 +2936,8 @@ paths:
       tags:
       - media
       summary: Media status and variants
+      description: Owner only (others get 404). Variants are present once the status is ready;
+        rejectionReason is set when it is rejected.
       parameters:
       - name: id
         in: path
@@ -2845,7 +2964,10 @@ paths:
       operationId: deleteMediaId
       tags:
       - media
-      summary: Delete unattached media
+      summary: Delete own media
+      description: Owner only (others get 404). Deletes the media and its files, in any status. If it
+        is the current avatar or cover it disappears from the profile as well, and an avatar leaves
+        the avatar history.
       parameters:
       - name: id
         in: path
@@ -5459,7 +5581,9 @@ paths:
       operationId: getReadyz
       tags:
       - platform
-      summary: Readiness (DB, Redis)
+      summary: Readiness (DB, Redis, object storage)
+      description: A database or Redis failure returns 503 with status down. An object storage
+        failure returns 200 with status degraded, because everything except media keeps working.
       security:
       - {}
       - bearer: []
@@ -5528,8 +5652,11 @@ components:
       required: false
       schema:
         type: string
+        pattern: ^[A-Za-z0-9_-]{8,128}$
         maxLength: 128
-      description: Retries with the same key and body return the original response for 24 h
+      description: Retries with the same key and body return the original response for 24 h; the
+        same key with a different body returns 409 (idempotency_key_reused). A malformed key returns
+        400.
     CsrfHeader:
       name: X-Elega-CSRF
       in: header
@@ -5563,6 +5690,18 @@ components:
             $ref: '#/components/schemas/Error'
     NotFound:
       description: Not found, or hidden from this viewer (blocks and private content return 404)
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    PayloadTooLarge:
+      description: Request body or declared upload size is over the limit
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    UnsupportedMediaType:
+      description: Media kind or type is not accepted
       content:
         application/json:
           schema:
@@ -6029,6 +6168,21 @@ components:
           type: boolean
         profile:
           $ref: '#/components/schemas/Profile'
+        dataSaver:
+          type: boolean
+          description: Same as Settings.dataSaver, so pages can pick image sizes without another request.
+        profileHintDismissed:
+          type: boolean
+          description: The owner closed the profile completeness hint.
+        onboardingDone:
+          type: boolean
+          description: The owner finished or skipped onboarding.
+        anonVisible:
+          type: boolean
+          description: 'The profile is open to everyone, anonymous visitors and search engines included:
+            the public-profiles feature is on, the account is adult and active, searchEngineIndexing is
+            on and the consent to dissemination of personal data (152-FZ art. 10.1) is valid for the
+            current PublicConfig.legalVersions.pdDissemination.'
       additionalProperties: false
       required:
       - id
@@ -6040,6 +6194,122 @@ components:
       - isMinor
       - locale
       - timezone
+      - dataSaver
+      - profileHintDismissed
+      - onboardingDone
+      - anonVisible
+    FieldAudience:
+      type: string
+      enum:
+      - public
+      - friends
+      - friends_of_friends
+      - only_me
+      - custom_list
+      description: 'Who may see a profile field. public: every member, and anonymous visitors too while
+        the profile is open to everyone (Me.anonVisible). custom_list is reserved for friend lists and
+        not accepted yet (400 audience_not_available). Minors may only use friends and only_me.'
+    ProfileFieldAudiences:
+      type: object
+      description: Effective audience of every profile field, defaults applied (friends, birthYear only_me).
+      properties:
+        cover:
+          $ref: '#/components/schemas/FieldAudience'
+        bio:
+          $ref: '#/components/schemas/FieldAudience'
+        city:
+          $ref: '#/components/schemas/FieldAudience'
+        country:
+          $ref: '#/components/schemas/FieldAudience'
+        workplace:
+          $ref: '#/components/schemas/FieldAudience'
+        education:
+          $ref: '#/components/schemas/FieldAudience'
+        website:
+          $ref: '#/components/schemas/FieldAudience'
+        links:
+          $ref: '#/components/schemas/FieldAudience'
+        pronouns:
+          $ref: '#/components/schemas/FieldAudience'
+        relationshipStatus:
+          $ref: '#/components/schemas/FieldAudience'
+        birthday:
+          $ref: '#/components/schemas/FieldAudience'
+        birthYear:
+          $ref: '#/components/schemas/FieldAudience'
+        photos:
+          $ref: '#/components/schemas/FieldAudience'
+      additionalProperties: false
+      required:
+      - cover
+      - bio
+      - city
+      - country
+      - workplace
+      - education
+      - website
+      - links
+      - pronouns
+      - relationshipStatus
+      - birthday
+      - birthYear
+      - photos
+    ProfileFieldAudiencesUpdate:
+      type: object
+      description: Only the fields sent change.
+      properties:
+        cover:
+          $ref: '#/components/schemas/FieldAudience'
+        bio:
+          $ref: '#/components/schemas/FieldAudience'
+        city:
+          $ref: '#/components/schemas/FieldAudience'
+        country:
+          $ref: '#/components/schemas/FieldAudience'
+        workplace:
+          $ref: '#/components/schemas/FieldAudience'
+        education:
+          $ref: '#/components/schemas/FieldAudience'
+        website:
+          $ref: '#/components/schemas/FieldAudience'
+        links:
+          $ref: '#/components/schemas/FieldAudience'
+        pronouns:
+          $ref: '#/components/schemas/FieldAudience'
+        relationshipStatus:
+          $ref: '#/components/schemas/FieldAudience'
+        birthday:
+          $ref: '#/components/schemas/FieldAudience'
+        birthYear:
+          $ref: '#/components/schemas/FieldAudience'
+        photos:
+          $ref: '#/components/schemas/FieldAudience'
+      additionalProperties: false
+    RelationshipStatus:
+      type: string
+      enum:
+      - single
+      - in_relationship
+      - engaged
+      - married
+      - complicated
+      - searching
+    ProfileLink:
+      type: object
+      properties:
+        url:
+          type: string
+          format: uri
+          maxLength: 2048
+          description: Normalised http or https URL
+        host:
+          type: string
+          description: Host to display. Unicode when it uses one script (Latin or Cyrillic), punycode
+            otherwise.
+      additionalProperties: false
+      required:
+      - url
+      - host
     Profile:
       type: object
       properties:
@@ -6051,39 +6321,49 @@ components:
         city:
           oneOf:
           - type: string
+            maxLength: 100
           - type: 'null'
+        country:
+          oneOf:
+          - type: string
+            pattern: ^[A-Z]{2}$
+          - type: 'null'
+          description: ISO 3166-1 alpha-2 code
         workplace:
           oneOf:
           - type: string
+            maxLength: 100
           - type: 'null'
         education:
           oneOf:
           - type: string
+            maxLength: 100
           - type: 'null'
         website:
           oneOf:
-          - type: string
-            format: uri
-          - type: 'null'
-        birthday:
-          oneOf:
-          - type: string
-            format: date
-          - type: 'null'
-        pronouns:
-          oneOf:
-          - type: string
-          - type: 'null'
-        relationshipStatus:
-          oneOf:
-          - type: string
+          - $ref: '#/components/schemas/ProfileLink'
           - type: 'null'
         links:
           type: array
           items:
-            type: string
-            format: uri
+            $ref: '#/components/schemas/ProfileLink'
           maxItems: 5
+        pronouns:
+          oneOf:
+          - type: string
+            maxLength: 30
+          - type: 'null'
+        relationshipStatus:
+          oneOf:
+          - $ref: '#/components/schemas/RelationshipStatus'
+          - type: 'null'
+        birthday:
+          type: string
+          pattern: ^\d{2}-\d{2}$
+          description: Day and month of birth as MM-DD; the year is birthYear. Read-only.
+        birthYear:
+          type: integer
+          description: Year of birth. Read-only.
         avatar:
           oneOf:
           - $ref: '#/components/schemas/MediaVariants'
@@ -6093,16 +6373,68 @@ components:
           - $ref: '#/components/schemas/MediaVariants'
           - type: 'null'
         fieldAudience:
-          type: object
-          additionalProperties:
-            type: string
-            enum:
-            - public
-            - friends
-            - friends_of_friends
-            - only_me
-            - custom_list
+          $ref: '#/components/schemas/ProfileFieldAudiences'
+          description: Sent to the owner only.
       additionalProperties: false
+      description: Fields the viewer may not see are omitted, never sent as null. Text is plain text.
+    ProfileUpdate:
+      type: object
+      properties:
+        bio:
+          oneOf:
+          - type: string
+            maxLength: 500
+          - type: 'null'
+        city:
+          oneOf:
+          - type: string
+            maxLength: 100
+          - type: 'null'
+        country:
+          oneOf:
+          - type: string
+            pattern: ^[A-Z]{2}$
+          - type: 'null'
+          description: ISO 3166-1 alpha-2 code
+        workplace:
+          oneOf:
+          - type: string
+            maxLength: 100
+          - type: 'null'
+        education:
+          oneOf:
+          - type: string
+            maxLength: 100
+          - type: 'null'
+        website:
+          oneOf:
+          - type: string
+            maxLength: 2048
+          - type: 'null'
+          description: http or https URL; https:// is added when the scheme is missing.
+        links:
+          oneOf:
+          - type: array
+            items:
+              type: string
+              maxLength: 2048
+            maxItems: 5
+          - type: 'null'
+          description: Same rules as website; duplicates are removed.
+        pronouns:
+          oneOf:
+          - type: string
+            maxLength: 30
+          - type: 'null'
+        relationshipStatus:
+          oneOf:
+          - $ref: '#/components/schemas/RelationshipStatus'
+          - type: 'null'
+        fieldAudience:
+          $ref: '#/components/schemas/ProfileFieldAudiencesUpdate'
+      additionalProperties: false
+      description: Every property is optional and null clears the field (an empty string does too).
+        Birthday comes from the account date of birth; avatar and cover have their own endpoints.
     ProfileView:
       type: object
       properties:
@@ -6126,11 +6458,21 @@ components:
           - type: string
             format: uuid
           - type: 'null'
+        indexable:
+          type: boolean
+          description: The profile is open to everyone (the Me.anonVisible rule), so search engines may
+            index it.
+        canonicalUsername:
+          type: string
+          description: The current username. Redirect to it when the request used an id or an old
+            username.
       additionalProperties: false
       required:
       - user
       - profile
       - relationship
+      - indexable
+      - canonicalUsername
       description: Fields the viewer may not see are omitted, never sent as null.
     MeUpdate:
       type: object
@@ -6143,7 +6485,7 @@ components:
           type: string
           pattern: ^[a-z0-9._]{3,30}$
         profile:
-          $ref: '#/components/schemas/Profile'
+          $ref: '#/components/schemas/ProfileUpdate'
         locale:
           type: string
           enum:
@@ -6151,6 +6493,10 @@ components:
           - en
         timezone:
           type: string
+        acceptedPdDisseminationVersion:
+          type: string
+          description: Consent to dissemination of personal data (152-FZ art. 10.1) covering the fields
+            this request makes public. Must equal PublicConfig.legalVersions.pdDissemination.
       additionalProperties: false
     Settings:
       type: object
@@ -6207,11 +6553,89 @@ components:
           - only_me
         searchEngineIndexing:
           type: boolean
+          description: Open the profile to everyone, anonymous visitors and search engines included
+            (see PATCH /me/settings for the conditions).
         discoverableByEmail:
           type: boolean
         dataSaver:
           type: boolean
+        profileHintDismissed:
+          type: boolean
+        onboardingDone:
+          type: boolean
       additionalProperties: false
+    SettingsUpdate:
+      type: object
+      properties:
+        theme:
+          type: string
+          enum:
+          - light
+          - dark
+          - system
+        fontScale:
+          type: number
+          minimum: 1
+          maximum: 2
+        feedMode:
+          type: string
+          enum:
+          - chronological
+          - for_you
+        whoCanMessage:
+          type: string
+          enum:
+          - everyone
+          - friends
+          - nobody
+        whoCanSendFriendRequests:
+          type: string
+          enum:
+          - everyone
+          - friends_of_friends
+          - nobody
+        whoCanSeeOnlineStatus:
+          type: string
+          enum:
+          - everyone
+          - friends
+          - nobody
+        whoCanMention:
+          type: string
+          enum:
+          - everyone
+          - friends
+          - nobody
+        allowFollowers:
+          type: boolean
+        readReceiptsEnabled:
+          type: boolean
+        defaultPostAudience:
+          type: string
+          enum:
+          - public
+          - friends
+          - close_friends
+          - only_me
+        searchEngineIndexing:
+          type: boolean
+          description: Open the profile to everyone, anonymous visitors and search engines included
+            (see PATCH /me/settings for the conditions).
+        discoverableByEmail:
+          type: boolean
+        dataSaver:
+          type: boolean
+        profileHintDismissed:
+          type: boolean
+        onboardingDone:
+          type: boolean
+        acceptedPdDisseminationVersion:
+          type: string
+          description: Consent to dissemination of personal data (152-FZ art. 10.1), needed to turn
+            searchEngineIndexing on without a valid consent on record. Must equal
+            PublicConfig.legalVersions.pdDissemination.
+      additionalProperties: false
+      description: Settings plus the consent version. Only the properties sent change.
     ExportJob:
       type: object
       properties:
@@ -6417,7 +6841,41 @@ components:
                 - webp
                 - jpeg
             additionalProperties: false
+            required:
+            - url
+            - width
+            - format
+          description: One entry per width and format. URLs are signed and expire; fetch the owning
+            resource again for fresh ones.
       additionalProperties: false
+      required:
+      - blurhash
+      - width
+      - height
+      - srcset
+    MediaPurpose:
+      type: string
+      enum:
+      - post
+      - comment
+      - avatar
+      - cover
+      - story
+      - message
+      - group
+      - page
+    MediaRejectionReason:
+      type: string
+      enum:
+      - too_large
+      - unsupported_type
+      - dimensions
+      - aspect_ratio
+      - corrupt
+      - malware
+      - policy
+      - expired
+      - failed
     UploadRequest:
       type: object
       properties:
@@ -6434,16 +6892,7 @@ components:
           type: integer
           minimum: 1
         purpose:
-          type: string
-          enum:
-          - post
-          - comment
-          - avatar
-          - cover
-          - story
-          - message
-          - group
-          - page
+          $ref: '#/components/schemas/MediaPurpose'
       additionalProperties: false
       required:
       - kind
@@ -6459,10 +6908,15 @@ components:
         uploadUrl:
           type: string
           format: uri
+        method:
+          type: string
+          enum:
+          - PUT
         headers:
           type: object
           additionalProperties:
             type: string
+          description: Send exactly these headers with the upload; they are part of the signature.
         expiresAt:
           type: string
           format: date-time
@@ -6470,6 +6924,8 @@ components:
       required:
       - mediaId
       - uploadUrl
+      - method
+      - headers
       - expiresAt
     Media:
       type: object
@@ -6484,6 +6940,8 @@ components:
           - video
           - audio
           - file
+        purpose:
+          $ref: '#/components/schemas/MediaPurpose'
         status:
           type: string
           enum:
@@ -6491,6 +6949,11 @@ components:
           - processing
           - ready
           - rejected
+        rejectionReason:
+          oneOf:
+          - $ref: '#/components/schemas/MediaRejectionReason'
+          - type: 'null'
+          description: Set when the status is rejected, null otherwise.
         variants:
           oneOf:
           - $ref: '#/components/schemas/MediaVariants'
@@ -6504,32 +6967,27 @@ components:
           oneOf:
           - type: integer
           - type: 'null'
+        createdAt:
+          type: string
+          format: date-time
       additionalProperties: false
       required:
       - id
       - kind
+      - purpose
       - status
+      - rejectionReason
+      - createdAt
     SetMediaRequest:
       type: object
       properties:
         mediaId:
           type: string
           format: uuid
-        crop:
-          type: object
-          properties:
-            x:
-              type: integer
-            y:
-              type: integer
-            width:
-              type: integer
-            height:
-              type: integer
-          additionalProperties: false
       additionalProperties: false
       required:
       - mediaId
+      description: The image is cropped on the client before upload; the server never crops.
     LinkPreviewRequest:
       type: object
       properties:
@@ -8242,15 +8700,29 @@ components:
               type: string
             pdProcessing:
               type: string
+            pdDissemination:
+              type: string
+              description: Consent to dissemination of personal data (152-FZ art. 10.1), needed to
+                open the profile to everyone
           additionalProperties: false
           required:
           - terms
           - privacy
           - pdProcessing
-        limits:
+          - pdDissemination
+        features:
           type: object
+          properties:
+            publicProfiles:
+              type: boolean
+              description: Profiles can be opened to everyone (anonymous visitors and search
+                engines). When false, searchEngineIndexing cannot be turned on.
+          additionalProperties: false
+          required:
+          - publicProfiles
       additionalProperties: false
       required:
       - registration
       - oauthProviders
       - legalVersions
+      - features
