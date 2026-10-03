@@ -9,6 +9,8 @@
 | [api/openapi.yaml](api/openapi.yaml) | REST API draft, OpenAPI 3.1 |
 | [api/realtime-events.md](api/realtime-events.md) | Socket.IO event contract |
 | [authorization-matrix.md](authorization-matrix.md) | Who may do what; source for generated policy tests |
+| [security.md](security.md) | Password policy, rate limits, tokens and cookies, 2FA, CSP, audit |
+| [auth-providers.md](auth-providers.md) | VK ID, Yandex ID and Google sign-in: flow, endpoints, app registration |
 | [design-directions.md](design-directions.md) | Three visual directions to choose from |
 | [scaffolding-plan.md](scaffolding-plan.md) | Monorepo layout, tooling, scripts, CI for M0 |
 | [progress.md](progress.md) | Milestone status log |

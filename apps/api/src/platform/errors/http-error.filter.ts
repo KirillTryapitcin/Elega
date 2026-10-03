@@ -7,6 +7,7 @@ import {
 } from '@nestjs/common';
 import type { ErrorBody, ErrorCode, ErrorDetail } from '@elega/shared';
 import type { FastifyReply, FastifyRequest } from 'fastify';
+import { RateLimitedError, setRateHeaders } from '../rate-limit.js';
 import { AppError } from './app-error.js';
 
 const CODE_BY_STATUS: Record<number, ErrorCode> = {
@@ -34,6 +35,9 @@ const SAFE_MESSAGES: Record<ErrorCode, string> = {
   internal_error: 'Internal error',
   mfa_required: 'Second factor required',
   registration_closed: 'Registration is closed',
+  account_suspended: 'Account suspended',
+  account_banned: 'Account banned',
+  reauth_required: 'Confirm it is you',
 };
 
 interface Mapped {
@@ -95,6 +99,7 @@ export class HttpErrorFilter implements ExceptionFilter {
     const request = http.getRequest<FastifyRequest>();
     const reply = http.getResponse<FastifyReply>();
     const mapped = mapError(exception);
+    if (exception instanceof RateLimitedError) setRateHeaders(reply, exception.result);
 
     if (mapped.status >= 500) {
       this.logger.error({ err: exception, requestId: request.id }, 'Unhandled error');

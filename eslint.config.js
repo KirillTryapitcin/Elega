@@ -53,7 +53,12 @@ export default tseslint.config(
     rules: { '@typescript-eslint/consistent-type-imports': 'off' },
   },
   {
-    files: ['apps/api/src/db/migrate-cli.ts', '**/*.test.{ts,tsx}', '**/*.int.test.ts'],
+    files: [
+      'apps/api/src/db/migrate-cli.ts',
+      'apps/api/src/cli/*.ts',
+      '**/*.test.{ts,tsx}',
+      '**/*.int.test.ts',
+    ],
     rules: {
       'no-console': 'off',
       'security/detect-non-literal-fs-filename': 'off',

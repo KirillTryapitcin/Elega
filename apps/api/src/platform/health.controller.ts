@@ -5,6 +5,8 @@ import type { Redis } from 'ioredis';
 import type pg from 'pg';
 import { PG_POOL } from './database.js';
 import { REDIS } from './redis.js';
+import { NoRateLimit } from './rate-limit.js';
+import { Public } from './request-context.js';
 
 const CHECK_TIMEOUT_MS = 1_000;
 
@@ -26,6 +28,8 @@ async function check(run: () => Promise<unknown>): Promise<'ok' | 'error'> {
   }
 }
 
+@Public()
+@NoRateLimit()
 @Controller()
 export class HealthController {
   constructor(

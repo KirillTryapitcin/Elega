@@ -9,6 +9,8 @@ x-node-env: &node-env
   LOG_LEVEL: info
   DATABASE_URL: postgres://elega:elega_local_only@postgres:5432/elega
   REDIS_URL: redis://:elega_local_only@redis:6379
+  # Open the stack at this exact origin: refresh and logout check Origin against it.
+  APP_BASE_URL: http://localhost:8080
 
 services:
   postgres:
@@ -81,6 +83,8 @@ services:
       <<: *node-env
       PORT: 3001
       TRUST_PROXY_HOPS: 1
+      APP_SECRET: elega_local_only_app_secret_0123456789abcdef
+      REGISTRATION_MODE: invite_only
     depends_on:
       migrate: { condition: service_completed_successfully }
       redis: { condition: service_healthy }
@@ -93,8 +97,12 @@ services:
       <<: *node-env
       HEALTH_PORT: 3002
       HEARTBEAT_EVERY_MS: 10000
+      SMTP_URL: smtp://mailpit:1025
+      MAIL_FROM: Элега <no-reply@elega.local>
     depends_on:
+      migrate: { condition: service_completed_successfully }
       redis: { condition: service_healthy }
+      mailpit: { condition: service_started }
     restart: unless-stopped
 
   web:

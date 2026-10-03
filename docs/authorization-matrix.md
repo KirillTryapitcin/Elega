@@ -1,8 +1,10 @@
 # Authorization policy matrix
 
-Status: accepted with the Step 2 blueprint. In M1, together with the first protected routes, this
-table becomes `packages/shared/src/policy/matrix.ts`
-and drives generated tests (brief §29.3): one test per cell, run in CI, failing on drift.
+Status: accepted with the Step 2 blueprint. The tables below are mirrored in
+`packages/shared/src/policy/matrix.ts`; `matrix.test.ts` fails when the two disagree, so change
+both together. The API generates one test per cell from that data (brief §29.3,
+`apps/api/test/policy.int.test.ts`); each row is enforced from the milestone that ships its
+resource, and rows from later milestones are listed as pending tests until then.
 
 ## Actors
 

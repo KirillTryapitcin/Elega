@@ -8,6 +8,8 @@ import { fileURLToPath } from 'node:url';
 import { parse } from 'yaml';
 import { createApp } from '../src/app.js';
 import { migrate, readMigrations } from '../src/db/migrate.js';
+import * as schema from '../src/db/schema.js';
+import { getTableConfig, PgTable } from 'drizzle-orm/pg-core';
 
 const MIGRATIONS = fileURLToPath(new URL('../migrations', import.meta.url));
 const SPEC = parse(
@@ -28,6 +30,8 @@ beforeAll(async () => {
   process.env.REDIS_URL = redis.getConnectionUrl();
   process.env.NODE_ENV = 'test';
   process.env.LOG_LEVEL = 'warn';
+  process.env.APP_BASE_URL = 'http://elega.test';
+  process.env.APP_SECRET = 'integration-test-secret-0123456789abcdef';
   app = await createApp();
   // Routes are registered during init(), so this hook sees every one of them.
   app
@@ -60,6 +64,22 @@ describe('migrations', () => {
         "SELECT count(*)::int AS n FROM information_schema.tables WHERE table_schema = 'public'",
       );
       expect(rows[0]?.n).toBeGreaterThan(40);
+
+      // Drizzle definitions must match the migrated schema, column by column.
+      for (const table of Object.values(schema).filter((value) => value instanceof PgTable)) {
+        const config = getTableConfig(table);
+        const { rows: columns } = await client.query<{ column_name: string; is_nullable: string }>(
+          'SELECT column_name, is_nullable FROM information_schema.columns WHERE table_name = $1',
+          [config.name],
+        );
+        const actual = new Map(columns.map((c) => [c.column_name, c.is_nullable === 'NO']));
+        for (const column of config.columns) {
+          expect(actual.has(column.name), `${config.name}.${column.name} exists`).toBe(true);
+          expect(actual.get(column.name), `${config.name}.${column.name} nullability`).toBe(
+            column.notNull || column.primary,
+          );
+        }
+      }
 
       const tampered = migrations.map((m, i) => (i === 0 ? { ...m, checksum: 'x' } : m));
       await expect(migrate(client, tampered)).rejects.toThrow(/checksum mismatch/);

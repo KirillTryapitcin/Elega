@@ -39,8 +39,9 @@ paths:
       tags:
       - auth
       summary: Register (invite code required until open beta)
-      parameters:
-      - $ref: '#/components/parameters/IdempotencyKey'
+      description: Creates the account, signs it in (refresh cookie set) and sends a verification
+        email. Unverified accounts are read-only until the email is confirmed. Retries are safe
+        without an Idempotency-Key because email and username are unique (409 on repeat).
       security: []
       requestBody:
         required: true
@@ -50,15 +51,17 @@ paths:
               $ref: '#/components/schemas/RegisterRequest'
       responses:
         '201':
-          description: OK
+          description: Signed in; refresh token set as the __Host-elega_rt cookie
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Me'
+                $ref: '#/components/schemas/AuthResult'
         '400':
           $ref: '#/components/responses/ValidationFailed'
         '403':
           $ref: '#/components/responses/Forbidden'
+        '409':
+          $ref: '#/components/responses/Conflict'
         '429':
           $ref: '#/components/responses/RateLimited'
   /auth/verify-email:
@@ -67,6 +70,9 @@ paths:
       tags:
       - auth
       summary: Confirm email with one-time token
+      description: Accepts both verify_email tokens (sign-up) and change_email tokens (the new
+        address becomes the account email). Tokens are single use; an unknown, used or expired
+        token returns 400.
       security: []
       requestBody:
         required: true
@@ -112,6 +118,9 @@ paths:
       tags:
       - auth
       summary: Log in with email or username
+      description: Wrong identifier and wrong password return the same 401. After repeated
+        failures for one identifier the endpoint answers 429 with Retry-After (temporary lockout).
+        Suspended and banned accounts get 403 with code account_suspended or account_banned.
       security: []
       requestBody:
         required: true
@@ -130,6 +139,8 @@ paths:
                 - $ref: '#/components/schemas/MfaChallenge'
         '400':
           $ref: '#/components/responses/ValidationFailed'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
         '403':
           $ref: '#/components/responses/Forbidden'
         '429':
@@ -156,6 +167,8 @@ paths:
                 $ref: '#/components/schemas/AuthResult'
         '400':
           $ref: '#/components/responses/ValidationFailed'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
         '403':
           $ref: '#/components/responses/Forbidden'
         '429':
@@ -398,15 +411,27 @@ paths:
       tags:
       - auth
       summary: Redirect to VK ID / Yandex ID (Google behind flag)
+      description: Top-level navigation, not a fetch. intent=link links the provider to the
+        signed-in account, identified by the refresh cookie; intent=login signs in or starts sign-up.
+        The state is bound to the browser by a short-lived __Host-elega_oauth cookie.
       parameters:
       - name: provider
         in: path
         required: true
         schema:
+          $ref: '#/components/schemas/OAuthProvider'
+      - name: intent
+        in: query
+        required: false
+        schema:
           type: string
+          enum:
+          - login
+          - link
+          default: login
       security:
       - {}
-      - bearer: []
+      - refreshCookie: []
       responses:
         '302':
           description: Redirect
@@ -427,15 +452,18 @@ paths:
       tags:
       - auth
       summary: OAuth callback
+      description: 'Redirects to the web app: / after sign-in (refresh cookie set), /login#mfa=...
+        when 2FA is on, /signup/complete#token=... for a new identity, /settings/security#linked=...
+        after linking, or /login#oauthError=<code> on failure. Secrets travel in the fragment so
+        they never reach server logs or Referer headers.'
       parameters:
       - name: provider
         in: path
         required: true
         schema:
-          type: string
+          $ref: '#/components/schemas/OAuthProvider'
       security:
       - {}
-      - bearer: []
       responses:
         '302':
           description: Redirect
@@ -448,6 +476,112 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+  /auth/oauth/pending:
+    post:
+      operationId: postAuthOauthPending
+      tags:
+      - auth
+      summary: Read a pending external sign-up to prefill the completion form
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TokenRequest'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OAuthPendingSignup'
+        '400':
+          $ref: '#/components/responses/ValidationFailed'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+  /auth/oauth/complete:
+    post:
+      operationId: postAuthOauthComplete
+      tags:
+      - auth
+      summary: Finish sign-up through VK ID / Yandex ID (birthdate and consents are mandatory)
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OAuthCompleteRequest'
+      responses:
+        '201':
+          description: Signed in; refresh token set as the __Host-elega_rt cookie
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResult'
+        '400':
+          $ref: '#/components/responses/ValidationFailed'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+  /auth/providers:
+    get:
+      operationId: getAuthProviders
+      tags:
+      - auth
+      summary: External sign-in providers linked to the account
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/LinkedProvider'
+                additionalProperties: false
+                required:
+                - data
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+  /auth/providers/{provider}:
+    delete:
+      operationId: deleteAuthProvidersProvider
+      tags:
+      - auth
+      summary: Unlink a provider (refused when it is the only way to sign in)
+      parameters:
+      - name: provider
+        in: path
+        required: true
+        schema:
+          $ref: '#/components/schemas/OAuthProvider'
+      responses:
+        '204':
+          description: Done
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
         '429':
           $ref: '#/components/responses/RateLimited'
   /auth/sessions:
@@ -490,7 +624,7 @@ paths:
       operationId: deleteAuthSessionsId
       tags:
       - auth
-      summary: Log out one device
+      summary: Log out one device (revokes the whole session family)
       parameters:
       - name: id
         in: path
@@ -5421,6 +5555,12 @@ components:
         application/json:
           schema:
             $ref: '#/components/schemas/Error'
+    Conflict:
+      description: Conflicts with existing state (taken email or username, last sign-in method)
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
     NotFound:
       description: Not found, or hidden from this viewer (blocks and private content return 404)
       content:
@@ -5458,6 +5598,9 @@ components:
               - internal_error
               - mfa_required
               - registration_closed
+              - account_suspended
+              - account_banned
+              - reauth_required
             message:
               type: string
             details:
@@ -5545,6 +5688,9 @@ components:
           type: string
         acceptedPrivacyVersion:
           type: string
+        acceptedPdProcessingVersion:
+          type: string
+          description: Separate consent to personal data processing (152-FZ art. 9)
         captchaToken:
           type: string
       additionalProperties: false
@@ -5556,6 +5702,7 @@ components:
       - birthdate
       - acceptedTermsVersion
       - acceptedPrivacyVersion
+      - acceptedPdProcessingVersion
     LoginRequest:
       type: object
       properties:
@@ -5668,12 +5815,13 @@ components:
       properties:
         password:
           type: string
+          description: Required when the account has a password. Accounts created through VK ID
+            or Yandex ID without a password must instead have signed in within the last 10 minutes
+            (otherwise 403 reauth_required).
         code:
           type: string
-          description: TOTP code when 2FA is on
+          description: TOTP or recovery code when 2FA is on
       additionalProperties: false
-      required:
-      - password
     TotpSetup:
       type: object
       properties:
@@ -5706,6 +5854,93 @@ components:
       additionalProperties: false
       required:
       - recoveryCodes
+    OAuthProvider:
+      type: string
+      enum:
+      - vk
+      - yandex
+      - google
+    OAuthPendingSignup:
+      type: object
+      properties:
+        provider:
+          $ref: '#/components/schemas/OAuthProvider'
+        email:
+          oneOf:
+          - type: string
+            format: email
+          - type: 'null'
+          description: Null when the provider did not share a verified email; the form must ask for one.
+        displayName:
+          oneOf:
+          - type: string
+          - type: 'null'
+        birthdate:
+          oneOf:
+          - type: string
+            format: date
+          - type: 'null'
+      additionalProperties: false
+      required:
+      - provider
+      - email
+      - displayName
+      - birthdate
+    OAuthCompleteRequest:
+      type: object
+      properties:
+        token:
+          type: string
+        email:
+          type: string
+          format: email
+          maxLength: 254
+          description: Only used when the provider did not share a verified email; a verification email is sent.
+        displayName:
+          type: string
+          minLength: 1
+          maxLength: 64
+        username:
+          type: string
+          pattern: ^[a-z0-9._]{3,30}$
+        birthdate:
+          type: string
+          format: date
+        inviteCode:
+          type: string
+          maxLength: 64
+        locale:
+          type: string
+          enum:
+          - ru
+          - en
+        acceptedTermsVersion:
+          type: string
+        acceptedPrivacyVersion:
+          type: string
+        acceptedPdProcessingVersion:
+          type: string
+      additionalProperties: false
+      required:
+      - token
+      - displayName
+      - username
+      - birthdate
+      - acceptedTermsVersion
+      - acceptedPrivacyVersion
+      - acceptedPdProcessingVersion
+    LinkedProvider:
+      type: object
+      properties:
+        provider:
+          $ref: '#/components/schemas/OAuthProvider'
+        linkedAt:
+          type: string
+          format: date-time
+      additionalProperties: false
+      required:
+      - provider
+      - linkedAt
     Session:
       type: object
       properties:
@@ -5789,6 +6024,8 @@ components:
         timezone:
           type: string
         twoFactorEnabled:
+          type: boolean
+        hasPassword:
           type: boolean
         profile:
           $ref: '#/components/schemas/Profile'
@@ -8003,10 +8240,17 @@ components:
               type: string
             privacy:
               type: string
+            pdProcessing:
+              type: string
           additionalProperties: false
+          required:
+          - terms
+          - privacy
+          - pdProcessing
         limits:
           type: object
       additionalProperties: false
       required:
       - registration
       - oauthProviders
+      - legalVersions

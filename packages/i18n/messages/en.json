@@ -15,18 +15,313 @@
       "dark": "Dark",
       "system": "System"
     },
-    "language": "Language"
+    "language": "Language",
+    "signOut": "Sign out"
   },
   "home": {
     "headline": "Friends, family and communities in one place",
     "lead": "Elega is getting ready for a closed alpha. The feed, messages, groups and events will appear here.",
-    "signInWith": "Sign in with {provider}",
     "friends": "{count, plural, one {# friend} other {# friends}}",
-    "newPosts": "{count, plural, =0 {No new posts} one {# new post} other {# new posts}}"
+    "newPosts": "{count, plural, =0 {No new posts} one {# new post} other {# new posts}}",
+    "signedInAs": "Signed in as {name} (@{username}).",
+    "verifyBanner": "Confirm {email}: we've sent you a link. Some features stay off until you do."
   },
   "errors": {
     "generic": "Something went wrong. Please try again.",
     "notFound": "Page not found",
     "offline": "No internet connection"
+  },
+  "emails": {
+    "greeting": "Hello, {name}!",
+    "footer": "This is a service email from Elega. If this wasn't you, change your password and sign out of all sessions in your security settings.",
+    "verify_email": {
+      "subject": "Confirm your email address",
+      "body": "Confirm your email address to use Elega fully. The link is valid for 24 hours.",
+      "action": "Confirm email"
+    },
+    "change_email_confirm": {
+      "subject": "Confirm your new email address",
+      "body": "You entered this address as the new email for your Elega account. The link is valid for 24 hours.",
+      "action": "Confirm address"
+    },
+    "change_email_notice": {
+      "subject": "Email change requested",
+      "body": "Someone asked to change the email of your account. It changes only after the new address is confirmed.",
+      "action": "Open security settings"
+    },
+    "reset_password": {
+      "subject": "Reset your password",
+      "body": "We received a request to reset your password. The link works once and is valid for 1 hour. If you didn't ask for this, ignore this email.",
+      "action": "Set a new password"
+    },
+    "password_changed": {
+      "subject": "Your password was changed",
+      "body": "The password of your account was changed and your other sessions were signed out.",
+      "action": "Open security settings"
+    },
+    "new_device_login": {
+      "subject": "Sign-in from a new device",
+      "body": "Your account was signed in from a new device: {device}. Time: {time}.",
+      "action": "Review sessions"
+    },
+    "two_factor_enabled": {
+      "subject": "Two-factor authentication is on",
+      "body": "Signing in now needs a code from your authenticator app. Keep your recovery codes somewhere safe.",
+      "action": "Open security settings"
+    },
+    "two_factor_disabled": {
+      "subject": "Two-factor authentication is off",
+      "body": "Signing in no longer needs a code from your authenticator app.",
+      "action": "Open security settings"
+    },
+    "provider_linked": {
+      "subject": "Sign-in method linked",
+      "body": "Sign-in with {provider} was linked to your account.",
+      "action": "Open security settings"
+    }
+  },
+  "auth": {
+    "or": "or",
+    "backToSignIn": "Back to sign in",
+    "providers": {
+      "vk": "VK ID",
+      "yandex": "Yandex ID",
+      "google": "Google"
+    },
+    "oauth": {
+      "login": "Continue with {provider}",
+      "link": "Link {provider}"
+    },
+    "login": {
+      "title": "Sign in",
+      "identifier": "Email or username",
+      "remember": "Remember this device",
+      "forgot": "Forgot your password?",
+      "noAccount": "Don't have an account?"
+    },
+    "mfa": {
+      "title": "Confirm sign-in",
+      "lead": "Enter the code from your authenticator app or one of your recovery codes.",
+      "code": "Code",
+      "hint": "6 digits from the app, or a 10-character recovery code",
+      "submit": "Confirm"
+    },
+    "signup": {
+      "title": "Create an account",
+      "lead": "Create an account to keep in touch with friends, family and communities.",
+      "completeTitle": "Finish signing up",
+      "completeLead": "You're signing up with {provider}. Just a few more details.",
+      "emailFromProvider": "Email from your profile: {email}",
+      "passwordHint": "At least {min} characters. A phrase of a few words works well.",
+      "usernameHint": "Latin letters, digits, dots and underscores, 3 to 30 characters.",
+      "birthdateHint": "You must be at least {age} to sign up.",
+      "inviteHint": "The code from your invitation, e.g. ABCD-EFGH-JKMN-PQRS.",
+      "acceptTerms": "I accept the <terms>terms of service</terms> and the <privacy>privacy policy</privacy>",
+      "acceptPd": "I give my <consent>consent to the processing of personal data</consent>",
+      "complete": "Finish signing up",
+      "haveAccount": "Already have an account?"
+    },
+    "verify": {
+      "title": "Email confirmation",
+      "done": "Your email is confirmed.",
+      "continue": "Continue"
+    },
+    "forgot": {
+      "title": "Reset your password",
+      "lead": "Enter your account email and we'll send you a link to set a new password.",
+      "sent": "If an account with this email exists, a message is on its way. The link is valid for 1 hour.",
+      "submit": "Send link"
+    },
+    "reset": {
+      "title": "New password",
+      "lead": "Choose a new password. Saving it signs you out on every device.",
+      "done": "Password changed. Sign in with your new password.",
+      "submit": "Save password"
+    },
+    "fields": {
+      "email": "Email",
+      "password": "Password",
+      "displayName": "Name",
+      "username": "Username",
+      "birthdate": "Date of birth",
+      "inviteCode": "Invite code",
+      "currentPassword": "Current password",
+      "newPassword": "New password"
+    },
+    "strength": {
+      "weak": "Weak password",
+      "fair": "Fair password",
+      "good": "Good password",
+      "strong": "Strong password"
+    },
+    "errors": {
+      "network": "Couldn't reach the server. Check your connection.",
+      "invalid": "Check this field.",
+      "required": "This field is required.",
+      "rate_limited": "Too many attempts. Wait a little and try again.",
+      "invalid_credentials": "Wrong email, username or password.",
+      "unauthorized": "Your session has expired. Sign in again.",
+      "forbidden": "This action isn't allowed.",
+      "not_found": "Nothing found.",
+      "conflict": "The data has changed. Reload the page and try again.",
+      "validation_failed": "Check what you entered.",
+      "mfa_required": "A two-factor code is required.",
+      "consent_required": "You need to accept this to sign up.",
+      "token_invalid": "This link is invalid or has expired. Request a new one.",
+      "code_invalid": "Wrong code.",
+      "code_required": "Enter the code from your app or a recovery code.",
+      "email_taken": "An account with this email already exists. Sign in or reset your password.",
+      "email_required": "Enter your email.",
+      "email_unchanged": "This is your current address.",
+      "email_domain_not_allowed": "Addresses on this domain aren't accepted. Use another email.",
+      "username_taken": "This username is taken.",
+      "username_format": "Latin letters, digits, dots and underscores only, 3 to 30 characters.",
+      "username_consecutive_dots": "Two dots in a row aren't allowed.",
+      "username_reserved": "This username is reserved.",
+      "username_cooldown": "You can change your username once every 14 days.",
+      "password_too_short": "This password is too short.",
+      "password_too_long": "This password is too long.",
+      "password_too_weak": "This password is too simple or too common. Add more words.",
+      "password_invalid": "Wrong password.",
+      "password_required": "Enter your password.",
+      "recent_sign_in_required": "Sign in again to do this.",
+      "birthdate_invalid": "Enter your real date of birth.",
+      "birthdate_too_young": "You must be at least 14 to sign up.",
+      "invite_invalid": "This invite code is not valid or has already been used.",
+      "version_outdated": "The documents have been updated. Reload the page and accept the new version.",
+      "registration_closed": "Registration is closed right now.",
+      "account_suspended": "This account is temporarily suspended.",
+      "account_banned": "This account has been banned for breaking the rules.",
+      "reauth_required": "Confirm that it is you.",
+      "setup_required": "Start the setup again.",
+      "not_allowed_for_minors": "This setting isn't available until you are 18.",
+      "display_name_invalid": "The name contains characters that are not allowed.",
+      "profile_editing_not_available": "Profile editing is coming later.",
+      "timezone_invalid": "Unknown time zone."
+    },
+    "oauthErrors": {
+      "invalid_state": "Sign-in was interrupted. Try again.",
+      "expired": "Sign-in took too long. Try again.",
+      "cancelled": "Sign-in was cancelled.",
+      "provider_error": "The sign-in service didn't respond. Try later or sign in with your password.",
+      "account_exists": "An account with this email already exists. Sign in with your password, then link this sign-in method in your security settings.",
+      "account_banned": "This account has been banned for breaking the rules.",
+      "account_suspended": "This account is temporarily suspended.",
+      "signin_required": "Sign in first to link a sign-in method.",
+      "already_linked": "This external account is already linked to another Elega user.",
+      "provider_already_linked": "Another account from this service is already linked to you."
+    }
+  },
+  "settings": {
+    "title": "Settings",
+    "save": "Save",
+    "saved": "Saved.",
+    "continue": "Continue",
+    "reauth": "Confirm that it is you.",
+    "tabs": {
+      "account": "Account",
+      "security": "Security",
+      "privacy": "Privacy"
+    },
+    "account": {
+      "profile": "General",
+      "timezone": "Time zone",
+      "usernameHint": "You can change it once every 14 days. Your old username keeps pointing to you for 30 days and nobody else can take it."
+    },
+    "email": {
+      "title": "Email",
+      "verified": "Confirmed",
+      "unverified": "Not confirmed",
+      "resend": "Send the email again",
+      "resent": "Email sent.",
+      "new": "New email",
+      "change": "Change email",
+      "changeSent": "We've sent a link to {email}. Your address changes once you confirm it."
+    },
+    "security": {
+      "password": "Password",
+      "passwordChanged": "Password changed. Your other sessions have been signed out.",
+      "changePassword": "Change password",
+      "noPassword": "You sign in with VK ID or Yandex ID. To set a password, use password recovery on the sign-in page."
+    },
+    "twoFactor": {
+      "title": "Two-factor authentication",
+      "description": "Besides your password, you'll need a code from an authenticator app to sign in.",
+      "on": "On",
+      "off": "Off",
+      "staffRequired": "Staff accounts must use two-factor authentication.",
+      "enable": "Turn on",
+      "disable": "Turn off",
+      "scan": "Scan the QR code with your authenticator app and enter the code it shows.",
+      "qrAlt": "QR code for your authenticator app",
+      "manual": "Can't scan it? Enter the key manually",
+      "confirm": "Confirm",
+      "enabled": "Two-factor authentication is on.",
+      "recovery": "Save these recovery codes. Each works once and lets you sign in without your phone. We won't show them again.",
+      "saved": "I've saved the codes"
+    },
+    "sessions": {
+      "title": "Sessions",
+      "description": "Devices where you are signed in.",
+      "unknownDevice": "Unknown device",
+      "current": "This device",
+      "lastActive": "Active {time}",
+      "signOut": "Sign out",
+      "signOutAll": "Sign out everywhere"
+    },
+    "providers": {
+      "title": "Sign-in methods",
+      "description": "External accounts you can use to sign in to Elega.",
+      "linked": "{provider} is linked.",
+      "lastMethod": "This is your only sign-in method. Set a password first.",
+      "unlink": "Unlink",
+      "none": "External sign-in methods are not available right now."
+    },
+    "privacy": {
+      "contact": "Who can contact me",
+      "visibility": "Visibility",
+      "feed": "Feed and data usage",
+      "minorNotice": "Until you turn 18, some privacy settings are limited to keep you safe.",
+      "minorLimited": "Some options are unavailable until you are 18.",
+      "minorLocked": "Unavailable until you are 18.",
+      "whoCanMessage": "Who can message me",
+      "whoCanSendFriendRequests": "Who can send me friend requests",
+      "whoCanSeeOnlineStatus": "Who can see when I'm online",
+      "whoCanMention": "Who can mention me",
+      "defaultPostAudience": "Who sees my posts by default",
+      "feedMode": "Feed order",
+      "allowFollowers": "Allow people to follow me",
+      "readReceiptsEnabled": "Show when I've read a message",
+      "searchEngineIndexing": "Show my profile in search engines",
+      "discoverableByEmail": "Let people find me by email address",
+      "dataSaver": "Data saver",
+      "options": {
+        "everyone": "Everyone",
+        "friends": "Friends",
+        "friends_of_friends": "Friends of friends",
+        "nobody": "Nobody",
+        "public": "Everyone",
+        "close_friends": "Close friends",
+        "only_me": "Only me",
+        "chronological": "Latest first",
+        "for_you": "Recommended"
+      }
+    }
+  },
+  "legal": {
+    "draft": "Draft",
+    "pending": "The text is being prepared and will be published after legal review. Until then Elega runs only as an invite-only closed test.",
+    "terms": {
+      "title": "Terms of service",
+      "summary": "The rules for using Elega: what you can post, how we handle reports and what happens when rules are broken."
+    },
+    "privacy": {
+      "title": "Privacy policy",
+      "summary": "What data we collect and why, where it is stored, and how you can export or delete it."
+    },
+    "pdProcessing": {
+      "title": "Consent to personal data processing",
+      "summary": "Consent under Russian Federal Law No. 152-FZ: which personal data is processed, for what purpose, and how to withdraw consent."
+    }
   }
 }

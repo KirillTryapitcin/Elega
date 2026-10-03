@@ -7,6 +7,14 @@ const envSchema = z
     APP_ENV: z.enum(['local', 'test', 'staging', 'production']).optional(),
     LOG_LEVEL: z.enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace']).default('info'),
     REDIS_URL: z.url({ protocol: /^rediss?$/ }),
+    DATABASE_URL: z.url({ protocol: /^postgres(ql)?$/ }),
+    /** smtp:// (STARTTLS when offered) or smtps://; Mailpit locally. */
+    SMTP_URL: z.url({ protocol: /^smtps?$/ }),
+    MAIL_FROM: z.string().min(3).default('Элега <no-reply@elega.ru>'),
+    /** Public origin of the web app; links in emails point here. */
+    APP_BASE_URL: z.url({ protocol: /^https?$/ }).transform((url) => url.replace(/\/+$/, '')),
+    /** How often the outbox relay polls for new events. */
+    OUTBOX_POLL_MS: z.coerce.number().int().min(100).default(1_000),
     HEALTH_PORT: z.coerce.number().int().min(1).max(65535).default(3002),
     /** How often the heartbeat job runs; health turns red after three missed beats. */
     HEARTBEAT_EVERY_MS: z.coerce.number().int().min(1_000).default(60_000),
@@ -17,12 +25,18 @@ const envSchema = z
   }))
   .superRefine((env, ctx) => {
     const guarded = env.APP_ENV === 'production' || env.APP_ENV === 'staging';
-    if (guarded && env.REDIS_URL.includes('local_only')) {
-      ctx.addIssue({
-        code: 'custom',
-        path: ['REDIS_URL'],
-        message: 'local-only credential in production',
-      });
+    if (!guarded) return;
+    for (const [key, value] of Object.entries(env)) {
+      if (typeof value === 'string' && value.includes('local_only')) {
+        ctx.addIssue({
+          code: 'custom',
+          path: [key],
+          message: 'local-only credential in production',
+        });
+      }
+    }
+    if (!env.APP_BASE_URL.startsWith('https://')) {
+      ctx.addIssue({ code: 'custom', path: ['APP_BASE_URL'], message: 'must be https' });
     }
   });
 

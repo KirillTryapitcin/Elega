@@ -13,6 +13,9 @@ export const ERROR_CODES = [
   'internal_error',
   'mfa_required',
   'registration_closed',
+  'account_suspended',
+  'account_banned',
+  'reauth_required',
 ] as const;
 
 export const errorCodeSchema = z.enum(ERROR_CODES);
@@ -48,4 +51,7 @@ export const ERROR_STATUS: Record<ErrorCode, number> = {
   internal_error: 500,
   mfa_required: 401,
   registration_closed: 403,
+  account_suspended: 403,
+  account_banned: 403,
+  reauth_required: 403,
 };

@@ -59,6 +59,8 @@ CMD ["node", "--enable-source-maps", "dist/main.js"]
 FROM runtime AS worker
 COPY --from=worker-deps --chown=node:node /repo /app
 COPY --from=build --chown=node:node /repo/apps/worker/dist /app/apps/worker/dist
+# Email copy is read at runtime from the i18n catalogs (the pruned install has manifests only).
+COPY --from=build --chown=node:node /repo/packages/i18n/messages /app/packages/i18n/messages
 WORKDIR /app/apps/worker
 HEALTHCHECK --interval=10s --timeout=3s --start-period=30s --retries=3 \
   CMD ["node", "-e", "fetch('http://127.0.0.1:'+(process.env.HEALTH_PORT||3002)+'/healthz').then(r=>process.exit(r.ok?0:1),()=>process.exit(1))"]

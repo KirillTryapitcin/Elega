@@ -10,7 +10,7 @@ Status: implemented in M0. Differences from the original plan, with reasons:
 | Design tokens in `packages/config` | Tokens in `packages/ui/src/theme.css` + `tokens.ts` | Tokens belong with the components that use them |
 | `observability` Compose profile | Not in M0 | Lands with production deployment work (M11a/M12); the API already emits structured JSON logs with request ids |
 | Migration test "roll back the last" | Apply to an empty DB, re-apply as a no-op, detect edited files | Forward-only migrations; rollback is a new migration |
-| `pnpm seed` | Not in M0 | Nothing to seed before accounts exist; arrives in M1 with the production guard |
+| `pnpm seed` | M1 | Demo accounts and invite codes; refuses to run unless `APP_ENV` is `local` or `test` |
 
 ## Layout
 
@@ -72,7 +72,7 @@ and pinned exactly (brief §4.5). None are guessed in this plan.
 | --- | --- |
 | `pnpm dev` | Compose services (postgres, redis, minio, mailpit) + all apps with hot reload |
 | `pnpm build` / `lint` / `typecheck` / `test` | Turborepo pipelines |
-| `pnpm db:migrate` / `db:reset` / `seed` | Migrations; reset; deterministic Russian demo data (refuses to run when `NODE_ENV=production`) |
+| `pnpm db:migrate` / `db:reset` / `seed` | Migrations; reset; deterministic Russian demo data (refuses to run unless `APP_ENV` is `local` or `test`) |
 | `pnpm api:generate` | Regenerate OpenAPI spec and `packages/api-client` |
 | `pnpm test:e2e` / `test:load` | Playwright / k6 |
 

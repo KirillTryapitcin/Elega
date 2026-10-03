@@ -1,5 +1,5 @@
 {
   "extends": "@elega/config/tsconfig.node.json",
   "compilerOptions": { "noEmit": true, "module": "ESNext", "moduleResolution": "Bundler" },
-  "include": ["specs", "playwright.config.ts"]
+  "include": ["specs", "playwright.config.ts", "global-setup.ts"]
 }
