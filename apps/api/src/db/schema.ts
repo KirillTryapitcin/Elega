@@ -1,10 +1,12 @@
 /**
  * Drizzle table definitions for the tables the API reads and writes. The SQL migrations in
- * apps/api/migrations are the source of truth; test/schema.int.test.ts fails when a column
- * here does not exist in the migrated database. Tables are added as milestones need them.
+ * apps/api/migrations are the source of truth; test/platform.int.test.ts fails when a column
+ * here does not exist in the migrated database or its nullability differs. Tables are added
+ * as milestones need them. Literal unions mirror the CHECK constraints of the migrations.
  */
 import { sql } from 'drizzle-orm';
 import {
+  bigint,
   boolean,
   customType,
   date,
@@ -12,6 +14,7 @@ import {
   jsonb,
   numeric,
   pgTable,
+  primaryKey,
   smallint,
   text,
   timestamp,
@@ -36,6 +39,40 @@ export type UserRole = 'user' | 'moderator' | 'analyst' | 'admin';
 export type Locale = 'ru' | 'en';
 export type AuthProvider = 'password' | 'vk' | 'yandex' | 'google';
 export type EmailTokenType = 'verify_email' | 'reset_password' | 'change_email';
+export type ConsentType =
+  'terms' | 'privacy' | 'pd_processing' | 'pd_dissemination' | 'marketing' | 'cookies_analytics';
+/** `consents.scope_json` of a pd_dissemination consent: the fields public at grant time. */
+export interface ConsentScope {
+  fields: string[];
+}
+export type FriendshipStatus = 'pending' | 'accepted';
+export type MediaStatus = 'pending' | 'processing' | 'ready' | 'rejected';
+export type ModerationStatus = 'unreviewed' | 'approved' | 'needs_review' | 'rejected';
+// Exported equivalents of these live in @elega/shared (profiles.ts, media.ts).
+type RelationshipStatus =
+  'single' | 'in_relationship' | 'engaged' | 'married' | 'complicated' | 'searching';
+type MediaKind = 'image' | 'video' | 'audio' | 'file';
+type MediaPurpose =
+  'post' | 'comment' | 'avatar' | 'cover' | 'story' | 'message' | 'group' | 'page';
+type MediaRejectionReason =
+  | 'too_large'
+  | 'unsupported_type'
+  | 'dimensions'
+  | 'aspect_ratio'
+  | 'corrupt'
+  | 'malware'
+  | 'policy'
+  | 'expired'
+  | 'failed';
+/** `media.variants_json` once the worker marked the media ready; `{}` before that. */
+export interface MediaVariantsV1 {
+  v: 1;
+  widths: number[];
+  formats: Array<'avif' | 'webp' | 'jpeg'>;
+  width: number;
+  height: number;
+}
+export type MediaVariantsJson = MediaVariantsV1 | { v?: undefined };
 
 export const users = pgTable('users', {
   id: id(),
@@ -63,11 +100,14 @@ export const userProfiles = pgTable('user_profiles', {
   userId: uuid('user_id').primaryKey(),
   bio: text('bio'),
   city: text('city'),
+  country: text('country'),
   workplace: text('workplace'),
   education: text('education'),
   website: text('website'),
   pronouns: text('pronouns'),
-  relationshipStatus: text('relationship_status'),
+  relationshipStatus: text('relationship_status').$type<RelationshipStatus>(),
+  avatarMediaId: uuid('avatar_media_id'),
+  coverMediaId: uuid('cover_media_id'),
   profileVisibilityJson: jsonb('profile_visibility_json')
     .$type<Record<string, string>>()
     .notNull()
@@ -109,6 +149,8 @@ export const userSettings = pgTable('user_settings', {
   searchEngineIndexing: boolean('search_engine_indexing').notNull().default(false),
   discoverableByEmail: boolean('discoverable_by_email').notNull().default(false),
   dataSaver: boolean('data_saver').notNull().default(false),
+  profileHintDismissed: boolean('profile_hint_dismissed').notNull().default(false),
+  onboardingDone: boolean('onboarding_done').notNull().default(false),
   ...stamps,
 });
 
@@ -187,17 +229,74 @@ export const usernameHistory = pgTable('username_history', {
   ...stamps,
 });
 
+export const friendships = pgTable('friendships', {
+  id: id(),
+  userAId: uuid('user_a_id').notNull(),
+  userBId: uuid('user_b_id').notNull(),
+  status: text('status').$type<FriendshipStatus>().notNull(),
+  requestedBy: uuid('requested_by').notNull(),
+  acceptedAt: tz('accepted_at'),
+  ...stamps,
+});
+
+export const follows = pgTable(
+  'follows',
+  {
+    followerId: uuid('follower_id').notNull(),
+    followeeId: uuid('followee_id').notNull(),
+    ...stamps,
+  },
+  (t) => [primaryKey({ columns: [t.followerId, t.followeeId] })],
+);
+
+export const blocks = pgTable(
+  'blocks',
+  {
+    blockerId: uuid('blocker_id').notNull(),
+    blockedId: uuid('blocked_id').notNull(),
+    ...stamps,
+  },
+  (t) => [primaryKey({ columns: [t.blockerId, t.blockedId] })],
+);
+
+export const media = pgTable('media', {
+  id: id(),
+  ownerId: uuid('owner_id').notNull(),
+  kind: text('kind').$type<MediaKind>().notNull(),
+  purpose: text('purpose').$type<MediaPurpose>().notNull(),
+  /** Random 32-hex root; object keys derive from it (storageKeys() in @elega/shared). */
+  storageKey: text('storage_key').notNull(),
+  originalFilename: text('original_filename'),
+  mimeType: text('mime_type'),
+  sizeBytes: bigint('size_bytes', { mode: 'number' }),
+  width: integer('width'),
+  height: integer('height'),
+  durationMs: integer('duration_ms'),
+  blurhash: text('blurhash'),
+  status: text('status').$type<MediaStatus>().notNull().default('pending'),
+  rejectionReason: text('rejection_reason').$type<MediaRejectionReason>(),
+  variantsJson: jsonb('variants_json').$type<MediaVariantsJson>().notNull().default({}),
+  checksumSha256: bytea('checksum_sha256'),
+  moderationStatus: text('moderation_status')
+    .$type<ModerationStatus>()
+    .notNull()
+    .default('unreviewed'),
+  processAttempts: smallint('process_attempts').notNull().default(0),
+  attachedAt: tz('attached_at'),
+  deletedAt: tz('deleted_at'),
+  ...stamps,
+});
+
 export const consents = pgTable('consents', {
   id: id(),
   userId: uuid('user_id'),
   anonymousId: uuid('anonymous_id'),
-  type: text('type')
-    .$type<'terms' | 'privacy' | 'pd_processing' | 'marketing' | 'cookies_analytics'>()
-    .notNull(),
+  type: text('type').$type<ConsentType>().notNull(),
   version: text('version').notNull(),
   grantedAt: tz('granted_at').notNull().defaultNow(),
   revokedAt: tz('revoked_at'),
   ipHash: bytea('ip_hash'),
+  scopeJson: jsonb('scope_json').$type<ConsentScope>(),
   ...stamps,
 });
 
@@ -212,6 +311,20 @@ export const outbox = pgTable('outbox', {
   attempts: integer('attempts').notNull().default(0),
   ...stamps,
 });
+
+export const idempotencyKeys = pgTable(
+  'idempotency_keys',
+  {
+    key: text('key').notNull(),
+    userId: uuid('user_id').notNull(),
+    requestHash: bytea('request_hash').notNull(),
+    responseStatus: smallint('response_status'),
+    responseJson: jsonb('response_json'),
+    expiresAt: tz('expires_at').notNull(),
+    ...stamps,
+  },
+  (t) => [primaryKey({ columns: [t.userId, t.key] })],
+);
 
 export const auditLog = pgTable('audit_log', {
   id: id(),
