@@ -1,9 +1,10 @@
 # Database
 
-Status: Step 2 blueprint draft. The schema lives in
-[`docs/database/0001_initial_schema.sql`](database/0001_initial_schema.sql) and was applied
-cleanly to an empty PostgreSQL 16.14 database. At M0 it is split into Drizzle-managed SQL
-migrations ([ADR-002](adr/002-orm-drizzle.md)).
+Status: accepted with the Step 2 blueprint. The schema lives in
+[`apps/api/migrations/0001_initial_schema.sql`](../apps/api/migrations/0001_initial_schema.sql) and was applied
+cleanly to an empty PostgreSQL 16.14 database. Migrations are hand-written SQL files applied
+in order by `pnpm db:migrate` (a small runner with an advisory lock, one transaction per file
+and a checksum per applied file); Drizzle is the query layer ([ADR-002](adr/002-orm-drizzle.md)).
 
 ## Conventions
 

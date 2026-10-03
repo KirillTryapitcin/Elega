@@ -2,14 +2,15 @@ openapi: 3.1.0
 info:
   title: Elega API
   version: 0.1.0-draft
-  description: 'Step 2 blueprint draft of the Elega REST API (/api/v1). From M0 the spec is generated from code
-    and this file is replaced. Conventions: JSON, UTF-8, ISO 8601 UTC timestamps; cursor pagination `{ data, page:
+  description: 'Elega REST API (/api/v1). This file is the contract (spec-first): packages/api-client is generated
+    from it, and an API integration test fails if the server exposes a route not described here. Endpoints are
+    implemented milestone by milestone; see docs/progress.md. Conventions: JSON, UTF-8, ISO 8601 UTC timestamps; cursor pagination `{ data, page:
     { nextCursor, hasMore } }` (limit default 20, max 50); unified error format; `Idempotency-Key` on creation endpoints;
     RateLimit-* headers on every response. Realtime events are specified in docs/api/realtime-events.md.'
 servers:
 - url: https://elega.ru/api/v1
   description: Production
-- url: http://localhost:3000/api/v1
+- url: http://localhost:8080/api/v1
   description: Local
 security:
 - bearer: []

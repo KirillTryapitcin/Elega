@@ -1,0 +1,14 @@
+{
+  "identities": [
+    {
+      "name": "elega-local",
+      "credentials": [
+        {
+          "accessKey": "elega_local_only",
+          "secretKey": "elega_local_only_secret"
+        }
+      ],
+      "actions": ["Admin", "Read", "Write", "List", "Tagging"]
+    }
+  ]
+}

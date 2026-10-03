@@ -1,0 +1,122 @@
+/*
+ * Elega design tokens, direction B "Dusk" (docs/design-directions.md).
+ * Import after `@import "tailwindcss";` in each app. Every text/background pair used by
+ * components is >= 4.5:1 in both themes (checked by src/tokens.test.ts).
+ *
+ * Theme selection: `data-theme="light" | "dark"` on <html>; no attribute follows the OS.
+ */
+
+:root {
+  color-scheme: light;
+  --elega-bg: #f4f4fa;
+  --elega-surface: #ffffff;
+  --elega-ink: #1b1b2e;
+  --elega-muted: #5e5f78;
+  --elega-border: #e2e2ef;
+  --elega-primary: #4338b8;
+  --elega-on-primary: #ffffff;
+  --elega-primary-soft: #ebe9fb;
+  --elega-primary-ink: #3a2fa3;
+  --elega-accent: #f0715a;
+  --elega-on-accent: #2f0d06;
+  --elega-accent-soft: #fde6e1;
+  --elega-accent-ink: #a8361f;
+  --elega-danger: #b42318;
+  --elega-on-danger: #ffffff;
+  --elega-focus: #4338b8;
+  --elega-shadow: 0 1px 2px rgb(27 27 46 / 0.06), 0 8px 24px rgb(27 27 46 / 0.08);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) {
+    color-scheme: dark;
+    --elega-bg: #11111d;
+    --elega-surface: #1a1a2b;
+    --elega-ink: #e9e9f6;
+    --elega-muted: #a0a0bd;
+    --elega-border: #2a2a42;
+    --elega-primary: #8f8bf7;
+    --elega-on-primary: #14123a;
+    --elega-primary-soft: #26244a;
+    --elega-primary-ink: #b9b6ff;
+    --elega-accent: #ff8a73;
+    --elega-on-accent: #2f0d06;
+    --elega-accent-soft: #3d1f1a;
+    --elega-accent-ink: #ffb1a2;
+    --elega-danger: #ff8a80;
+    --elega-on-danger: #2d0605;
+    --elega-focus: #b9b6ff;
+    --elega-shadow: 0 1px 2px rgb(0 0 0 / 0.4), 0 10px 30px rgb(0 0 0 / 0.45);
+  }
+}
+
+:root[data-theme='dark'] {
+  color-scheme: dark;
+  --elega-bg: #11111d;
+  --elega-surface: #1a1a2b;
+  --elega-ink: #e9e9f6;
+  --elega-muted: #a0a0bd;
+  --elega-border: #2a2a42;
+  --elega-primary: #8f8bf7;
+  --elega-on-primary: #14123a;
+  --elega-primary-soft: #26244a;
+  --elega-primary-ink: #b9b6ff;
+  --elega-accent: #ff8a73;
+  --elega-on-accent: #2f0d06;
+  --elega-accent-soft: #3d1f1a;
+  --elega-accent-ink: #ffb1a2;
+  --elega-danger: #ff8a80;
+  --elega-on-danger: #2d0605;
+  --elega-focus: #b9b6ff;
+  --elega-shadow: 0 1px 2px rgb(0 0 0 / 0.4), 0 10px 30px rgb(0 0 0 / 0.45);
+}
+
+@theme inline {
+  --color-bg: var(--elega-bg);
+  --color-surface: var(--elega-surface);
+  --color-ink: var(--elega-ink);
+  --color-muted: var(--elega-muted);
+  --color-border: var(--elega-border);
+  --color-primary: var(--elega-primary);
+  --color-on-primary: var(--elega-on-primary);
+  --color-primary-soft: var(--elega-primary-soft);
+  --color-primary-ink: var(--elega-primary-ink);
+  --color-accent: var(--elega-accent);
+  --color-on-accent: var(--elega-on-accent);
+  --color-accent-soft: var(--elega-accent-soft);
+  --color-accent-ink: var(--elega-accent-ink);
+  --color-danger: var(--elega-danger);
+  --color-on-danger: var(--elega-on-danger);
+  --color-focus: var(--elega-focus);
+  --shadow-card: var(--elega-shadow);
+  --radius-card: 18px;
+  --radius-control: 12px;
+  --font-sans: 'Onest Variable', 'Onest', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+}
+
+@layer base {
+  html {
+    font-family: var(--font-sans);
+    background: var(--elega-bg);
+    color: var(--elega-ink);
+    -webkit-text-size-adjust: 100%;
+  }
+  h1,
+  h2,
+  h3 {
+    font-weight: 700;
+    letter-spacing: -0.01em;
+  }
+  :focus-visible {
+    outline: 2px solid var(--elega-focus);
+    outline-offset: 2px;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      transition-duration: 0.01ms !important;
+    }
+  }
+}

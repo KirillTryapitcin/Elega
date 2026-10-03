@@ -1,0 +1,29 @@
+{
+  "name": "@elega/api-client",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "files": [
+    "dist"
+  ],
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "generate": "openapi-typescript ../../docs/api/openapi.yaml --output src/schema.d.ts && prettier --write src/schema.d.ts --log-level warn",
+    "build": "tsc -p tsconfig.build.json && cp src/schema.d.ts dist/schema.d.ts",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "openapi-fetch": "0.17.0"
+  },
+  "devDependencies": {
+    "@elega/config": "workspace:*",
+    "openapi-typescript": "7.13.0",
+    "prettier": "3.9.9",
+    "typescript": "6.0.3"
+  }
+}
